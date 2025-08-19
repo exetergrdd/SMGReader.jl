@@ -25,6 +25,13 @@ Return the reference name of `record` read by `reader`. `reader` is necessary to
 end
 
 """
+    materefname(reader::HTSFileReader, record::BamRecord)
+
+Return the reference name of the mate of `record` read by `reader`. `reader` is necessary to load the ref name from the header of the bam/cram file.
+"""
+@inline materefname(reader::HTSFileReader, record::BamRecord) = refname(reader.hdr, record.core.mtid)
+
+"""
     cigarvec(record)
 
 Get CIGAR description of alignment of `record` returned as lengths (Vector{Int}) and codes (Vector{Char}).
@@ -105,26 +112,73 @@ end
 
 Get quality scores as byte array
 """
-@inline function qual(record)
+@inline function qual(record::BamRecord)
     l = record.core.l_qseq
     off = record.core.l_qname + 4 * record.core.n_cigar + cld(l, 2) + 1
     return @view record.data[off:off + l - 1]
 end
 
+@inline function qualstring(record::BamRecord)
+    q = qual(record)
+    buff = Vector{UInt8}(undef, length(q))
+    @inbounds for i in eachindex(q)
+        buff[i] = q[i] + 33
+    end
+    return String(buff)
+end
+
+
 """
-    ispositive(record)
+    flag(record::BamRecord)
+
+Get flag of record
+"""
+@inline flag(record::BamRecord) = record.core.flag
+
+"""
+    ispositive(record::BamRecord)
 
 Determine if `record` is aligned to the positive strand
 """
-@inline ispositive(record) = (record.core.flag & 0x10) == 0
+@inline ispositive(record::BamRecord) = (record.core.flag & 0x10) == 0
 
 """
-    validfrag(record)
+    validfrag(record::BamRecord)
 
 Return true if flag is 0 or 16.
 """
-@inline validflag(record) = (record.core.flag == 0x0000) || (record.core.flag == 0x0010)
+@inline validflag(record::BamRecord) = (record.core.flag == 0x0000) || (record.core.flag == 0x0010)
 
+
+
+"""
+    leftposition(record::BamRecord)
+
+Return the position of the record in 0-based coords
+"""
+@inline leftposition(record::BamRecord) = record.core.pos
+
+
+"""
+    mappingquality(record::BamRecord)
+
+Return mapping quality of record
+"""
+@inline mappingquality(record::BamRecord) = record.core.qual
+
+"""
+    mateposition(record::BamRecord)
+return the mate position in 0-based coords
+"""
+@inline matepos(record::BamRecord) = record.core.mpos
+
+
+"""
+    templatelength(record::BamRecord)
+
+return the template length of the record
+"""
+@inline templatelength(record::BamRecord) = record.core.isize
 """
     rightpos(rdata)
 
