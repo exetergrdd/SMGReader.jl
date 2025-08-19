@@ -3,6 +3,9 @@ uuid = "1fcad8e2-2524-48d4-84b4-e3c1a79e288e"
 authors = ["Nick Owens <owensnick@gmail.com> and contributors"]
 version = "1.0.0-DEV"
 
+[deps]
+htslib_jll = "f06fe41e-9474-5571-8c61-5634d2b2700c"
+
 [compat]
 julia = "1.6.7"
 
