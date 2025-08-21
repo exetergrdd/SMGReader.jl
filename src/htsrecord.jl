@@ -179,6 +179,13 @@ return the mate position in 0-based coords
 return the template length of the record
 """
 @inline templatelength(record::BamRecord) = record.core.isize
+
+"""
+    querylength(record::BamRecord)
+
+Return the query length of the record
+"""
+@inline querylength(record::BamRecord) = record.core.l_qseq
 """
     rightpos(rdata)
 
@@ -186,3 +193,5 @@ Get the right position of alignment on genome.
 TODO:: this should be elsewhere with rdata defs
 """
 @inline rightpos(rdata) = rdata.alignmap[findlast(!iszero, rdata.alignmap)]
+
+
