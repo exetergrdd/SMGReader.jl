@@ -13,6 +13,7 @@ include("htsrecord.jl")
 include("auxfields.jl")
 include("modifications.jl")
 include("sam.jl")
+include("alignmentmap.jl")
 include("processedread.jl")
 
 
