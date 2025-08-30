@@ -122,3 +122,135 @@ function getmmml(record::BamRecord)
     (isnothing(mm_aux) || isnothing(ml_aux)) && error("MM/ML not found")
     mm_aux, ml_aux
 end
+
+
+
+#### functions for specific and common auxillary maps
+
+
+abstract type AuxMap end
+
+"""
+    AuxMapMod()
+
+Construct an map of the aux data for HP, MM, ML fields. For standard use in chromatin stencilling (non-fire) and direct RNA.
+"""
+mutable struct AuxMapMod <: AuxMap
+    hp::Union{AuxField, Nothing}
+    mm::AuxField
+    ml::AuxField
+end
+AuxMapMod() = AuxMapMod(AuxField(), AuxField(), AuxField())
+
+
+"""
+    AuxMapModFire()
+
+Construct and map of the aux data for a FIRE BAM/CRAM mapping fields
+
+  - hp: Haplotype
+  - mm: Run length encoded mod bases
+  - ml: Mod Probability
+  - ns: Nucleosome positions
+  - nl: nucleosome length
+  - as: msp positions
+  - al: msp lengths
+  - aq: msp quality score
+"""
+mutable struct AuxMapModFire <: AuxMap
+    hp::Union{AuxField, Nothing}
+    mm::AuxField
+    ml::AuxField
+    ns::AuxField
+    nl::AuxField
+    as::AuxField
+    al::AuxField
+    aq::AuxField
+end
+AuxMapModFire() = AuxMapModFire(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
+
+
+"""
+    auxmap!(record::BamRecord, auxmap<:Auxmap)
+
+Construct map of auxillary data from `record` identifying fields specified by `auxmap`.
+"""
+@inline function auxmap!(record::BamRecord, auxmap::AuxMapMod)
+    hp = nothing
+    mm = nothing
+    ml = nothing
+    
+    for af in AuxFieldIter(record)
+        if af.tag == (UInt8('H'), UInt8('P'))
+            hp = af
+        elseif af.tag == (UInt8('M'), UInt8('M'))
+            mm = af
+        elseif af.tag == (UInt8('M'), UInt8('L'))
+            ml = af
+        end
+        !isnothing(mm) && !isnothing(ml) && !isnothing(hp) && break
+    end
+    
+    (isnothing(mm) || isnothing(ml)) && error("MM/ML not found")
+    auxmap.hp = hp
+    auxmap.mm = mm
+    auxmap.ml = ml
+end
+
+@inline function auxmap!(record, auxmap::AuxMapModFire)
+    hp = nothing
+    mm = nothing
+    ml = nothing
+    ns = nothing
+    nl = nothing
+    as = nothing
+    al = nothing
+    aq = nothing
+    
+    totalfields = 8
+    totalrecords = 0
+    
+    for af in AuxFieldIter(record)
+        if af.tag == (UInt8('H'), UInt8('P'))
+            hp = af
+            totalrecords += 1
+        elseif af.tag == (UInt8('M'), UInt8('M'))
+            mm = af
+            totalrecords += 1
+        elseif af.tag == (UInt8('M'), UInt8('L'))
+            ml = af
+            totalrecords += 1
+        elseif af.tag == (UInt8('n'), UInt8('s'))
+            ns = af
+            totalrecords += 1
+        elseif af.tag == (UInt8('n'), UInt8('l'))
+            nl = af
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('s'))
+            as = af
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('l'))
+            al = af
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('q'))
+            aq = af
+            totalrecords += 1
+        end
+        
+        (totalrecords == totalfields) && break
+    end
+    
+    (isnothing(mm) || isnothing(ml)) && error("MM/ML not found")
+    (isnothing(ns) || isnothing(nl) || isnothing(as) || isnothing(al) || isnothing(aq)) && error("Fire Aux fields  not found")
+    
+    
+    auxmap.hp = hp
+    auxmap.mm = mm
+    auxmap.ml = ml
+    auxmap.ns = ns
+    auxmap.nl = nl
+    auxmap.as = as
+    auxmap.al = al
+    auxmap.aq = aq
+    auxmap
+end
