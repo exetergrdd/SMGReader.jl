@@ -5,7 +5,7 @@ A resizable buffer that wraps a `Vector{T}` and tracks a logical length (`len`).
 Efficient for repeated resizing and reuse, e.g., when processing records in a loop.
 
     Recommendation is to allocate a large enough vector buffer to work with, e.g.
-    following constants are set in moddata.jl
+    following constants are set in processedread.jl
 
     const MOD_6MA_BUFFER_LENGTH = 70_000
     const MOD_5MC_BUFFER_LENGTH = 70_000
