@@ -384,3 +384,4 @@ end
 end
 
 @inline Base.IteratorSize(::ModIterator) = Base.SizeUnknown()
+@inline Base.eltype(::Type{ModIterator}) = ModificationInfo
