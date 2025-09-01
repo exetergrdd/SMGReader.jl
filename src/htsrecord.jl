@@ -186,12 +186,5 @@ return the template length of the record
 Return the query length of the record
 """
 @inline querylength(record::BamRecord) = record.core.l_qseq
-"""
-    rightpos(rdata)
-
-Get the right position of alignment on genome.
-TODO:: this should be elsewhere with rdata defs
-"""
-@inline rightpos(rdata) = rdata.alignmap[findlast(!iszero, rdata.alignmap)]
 
 
