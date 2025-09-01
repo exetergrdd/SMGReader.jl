@@ -219,6 +219,7 @@ Construct an iterator of `reader` in record order. Multiple successive calls wil
     return RecordIterator(reader, record)
 end
 
+@inline Base.eltype(::Type{RecordIterator}) = BamRecord
 @inline Base.IteratorSize(::RecordIterator) = Base.SizeUnknown()
 @inline Base.iterate(iter::RecordIterator) = iterate(iter, nothing)
 @inline function Base.iterate(iter::RecordIterator, state)
@@ -269,6 +270,7 @@ function set_region!(reader::HTSFileReader, region::AbstractString)
     reader.done = false
 end
 
+@inline Base.eltype(::Type{RegionIterator}) = BamRecord
 @inline Base.IteratorSize(::RegionIterator) = Base.SizeUnknown()
 @inline Base.iterate(iter::RegionIterator) = iterate(iter, nothing)
 @inline function Base.iterate(iter::RegionIterator, state)
