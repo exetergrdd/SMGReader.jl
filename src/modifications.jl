@@ -383,3 +383,4 @@ end
     return nothing
 end
 
+@inline Base.IteratorSize(::ModIterator) = Base.SizeUnknown()
