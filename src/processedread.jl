@@ -66,20 +66,20 @@ Process read mapping auxillary fields and building read to genome map using prea
     auxmap!(record, recorddata.auxmap)
 end
 
-@inline function processread!(r, rdata::DirectRNAAlignBlocks{T}) where {T}
-    readtogenome!(r, rdata.alignmap)
-    alignmentblocks!(r, rdata.alignblocks)
-    auxmap!(r, rdata.auxmap)
+@inline function processread!(record::BamRecord, recorddata::DirectRNAAlignBlocks)
+    readtogenome!(record, recorddata.alignmap)
+    alignmentblocks!(record, recorddata.alignblocks)
+    auxmap!(record, recorddata.auxmap)
 end
 
 
 ### accessor functions
 """
-    rightpos(recorddata::HTSReadData)
+    rightposition(recorddata::HTSReadData)
 
 Get the right position of alignment on genome.
 """
-@inline rightpos(recorddata::HTSReadData) = rdata.alignmap[findlast(!iszero, rdata.alignmap)]
+@inline rightposition(recorddata::HTSReadData) = recorddata.alignmap[findlast(!iszero, recorddata.alignmap)]
 
 
 """
