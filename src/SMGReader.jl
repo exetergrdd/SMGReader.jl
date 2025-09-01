@@ -2,8 +2,8 @@ module SMGReader
 
 export  HTSFileReader, indexfile, BamRecord,
         eachintersection, eachrecord,
-        qname, refname, cigarvec, cigarstring, qual, ispositive, validflag, seq, flag, leftposition, mappingquality, matepos, materefname, querylength, templatelength, haplotype, hashaplotype, rightpos,
-        AuxField, AuxMapMod, AuxMapModFire, Modification, ModificationInfo, ModIterator,
+        qname, refname, cigarvec, cigarstring, qual, ispositive, validflag, seq, flag, leftposition, mappingquality, matepos, materefname, querylength, templatelength, haplotype, hashaplotype, rightposition,
+        AuxField, AuxFieldIter, AuxMapMod, AuxMapModFire, Modification, ModificationInfo, ModIterator, mod_6mA, mod_5mC, mod_5hmC, mod_4mC, mod_inosine, mod_pseU,
         StencillingData, DirectRNA, DirectRNAAlignBlocks, processread!,
         firemsps, firenucs, firegenome,
         samrecord, writesamfile,
