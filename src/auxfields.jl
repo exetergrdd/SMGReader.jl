@@ -44,6 +44,7 @@ Returns a tuple `(AuxField, next_index)` for each field, or `nothing` when done.
     return _next_aux(iter.record.data, offset + 1)
 end
 @inline Base.iterate(iter::AuxFieldIter, i) = _next_aux(iter.record.data, i)
+@inline Base.IteratorSize(::AuxFieldIter) = Base.SizeUnknown()
 
 @inline function _next_aux(bytes, i)
     @inbounds begin
