@@ -75,6 +75,14 @@ end
 
 ### accessor functions
 """
+    rightpos(recorddata::HTSReadData)
+
+Get the right position of alignment on genome.
+"""
+@inline rightpos(recorddata::HTSReadData) = rdata.alignmap[findlast(!iszero, rdata.alignmap)]
+
+
+"""
     haplotype(record::BamRecord, recorddata::HTSReadData)
 
 Return haplotype of record and nothing if haplotype missing
@@ -91,31 +99,118 @@ Return true if `record` has haplotype field
 
 
 ### functions to map to genome
-@inline function genomecoords(pos, len, r::BamRecord, rdata; onebased=true)
+"""
+    genomecoords(pos::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
+
+Map read coordinates to genome coordates that uses `alignmap` in `recorddata`, `onebased=true` for 1-based coordinates
+"""
+@inline function genomecoords(pos::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
     if ispositive(r)
-        return rdata.alignmap[pos] + onebased, rdata.alignmap[pos + len - 1] + onebased
+        return recorddata.alignmap[pos] + onebased
     else
-        return rdata.alignmap[r.core.l_qseq - (pos + len - 1) + 1] + onebased, rdata.alignmap[r.core.l_qseq - pos + 1] + onebased
+        return recorddata.alignmap[record.core.l_qseq - (pos + len - 1) + 1] + onebased
     end
 end
 
-### accessor functions
-@inline firenucpos(r, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.ns.start:am.ns.stop]))
-@inline firenuclen(r, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.nl.start:am.nl.stop]))
-@inline firemsppos(r, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.as.start:am.as.stop]))
-@inline firemsplen(r, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.al.start:am.al.stop]))
-@inline firemspqual(r, am::AuxMapModFire) = @view r.data[am.aq.start:am.aq.stop]
+
+"""
+    genomecoords(pos::Int, len::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
+
+Map read coordinates to genome coordates that uses `alignmap` in `recorddata`, `onebased=true` for 1-based coordinates
+"""
+@inline function genomecoords(pos::Int, len::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
+    if ispositive(r)
+        return recorddata.alignmap[pos] + onebased, recorddata.alignmap[pos + len - 1] + onebased
+    else
+        return recorddata.alignmap[record.core.l_qseq - (pos + len - 1) + 1] + onebased, recorddata.alignmap[record.core.l_qseq - pos + 1] + onebased
+    end
+end
+
+### accessor functions for fire
+
+"""
+    firenucpos(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+
+Return fiber tools annotated nucleosome positions on read coordinates.
+"""
+@inline  firenucpos(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) =  firenucpos(r, recorddata.am)
+
+"""
+    firenuclen(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+
+Return fiber tools annotated nucleosome lengths on read coordinates.
+"""
+@inline  firenuclen(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) =  firenuclen(r, recorddata.am)
+
+"""
+    firemsppos(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+
+Return fiber tools annotated MSP positions on read coordinates.
+"""
+@inline  firemsppos(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) =  firemsppos(r, recorddata.am)
+
+"""
+    firemsplen(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+
+Return fiber tools annotated MSP lengths on read coordinates.
+"""
+@inline  firemsplen(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) =  firemsplen(r, recorddata.am)
+
+"""
+    firemspqual(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+
+Return fiber tools annotated MSP quality scores on read coordinates.
+"""
+@inline firemspqual(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) = firemspqual(r, recorddata.am)
 
 
-@inline firemsps(r, rdata) = zip(firemsppos(r, rdata.auxmap), firemsplen(r, rdata.auxmap), firemspqual(r, rdata.auxmap))
-@inline firenucs(r, rdata) = zip(firenucpos(r, rdata.auxmap), firenuclen(r, rdata.auxmap))
+@inline  firenucpos(r::BamRecord, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.ns.start:am.ns.stop]))
+@inline  firenuclen(r::BamRecord, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.nl.start:am.nl.stop]))
+@inline  firemsppos(r::BamRecord, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.as.start:am.as.stop]))
+@inline  firemsplen(r::BamRecord, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.al.start:am.al.stop]))
+@inline firemspqual(r::BamRecord, am::AuxMapModFire) = @view r.data[am.aq.start:am.aq.stop]
 
 
-@inline haplotype(r, rdata, default=nothing) = isnothing(rdata.auxmap.hp) ? default : r.data[rdata.auxmap.hp.start]
-@inline hashaplotype(r, rdata) = isnothing(rdata.auxmap.hp)
+"""
+    firemsps(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+
+Construct iterator of fire msp positions, lengths, and quality scores in read coordinates
+Usage:
+
+    for (pos, len, qual) in firemsps(record, recorddata)
+        ### do something 
+    end
+"""
+@inline firemsps(record::BamRecord, recorddata::StencillingData{AuxMapModFire}) = zip(firemsppos(record, recorddata.auxmap), firemsplen(record, recorddata.auxmap), firemspqual(record, recorddata.auxmap))
+
+"""
+    firenucs(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+
+Construct iterator of fire nucleosome positions, lengths in read coordinates
+Usage:
+
+    for (pos, len) in firenucs(record, recorddata)
+        ### do something 
+    end
+"""
+@inline firenucs(record::BamRecord, recorddata::StencillingData{AuxMapModFire}) = zip(firenucpos(record, recorddata.auxmap), firenuclen(record, recorddata.auxmap))
+
 
 
 
 @inline firegenomeelement(r, rdata) = x -> (genomecoords(x[1],x[2], r, rdata)..., x[3:end]...)
 @inline firefilt(x, onebased=true) = (x[1] > onebased) && (x[2] > onebased)
-@inline firegenome(r, rdata) = it -> Iterators.filter(firefilt, Iterators.map(firegenomeelement(r, rdata), it))
+
+"""
+    firegenome(record::BamRecord, recorddata::StencillingData{AuxMapModFire}
+
+Construct a function for mapping fire nucleosomes and MSP coordiates from read coordinates to genome filtering out entries that do not map
+
+Usage:
+    firegenomecoords = firegenome(record, recorddata)
+
+    for (pos, len, qual) in firegenomcoords(firemsps(record, recorddata))
+        ### do something with genome coordinates
+    end
+"""
+@inline firegenome(record::BamRecord, recorddata::StencillingData{AuxMapModFire}) = it -> Iterators.filter(firefilt, Iterators.map(firegenomeelement(record, recorddata), it))
