@@ -271,12 +271,12 @@ function ModIterator(record::BamRecord)
     return ModIterator(record, mmaux, mlaux)
 end
 
-# """
-#     ModIterator(record::BamRecord, rdata::HTSReadData)
+"""
+    ModIterator(record::BamRecord, rdata::HTSReadData)
 
-# Construct a `ModIterator` for a given BAM/CRAM record, using the mm and ml fields in the auxmap
-# """
-# ModIterator(record::BamRecord, rdata::HTSReadData) = ModificationInfoß(record, rdata.auxmap.mm, rdata.auxmap.ml)
+Construct a `ModIterator` for a given BAM/CRAM record, using the mm and ml fields in the auxmap
+"""
+ModIterator(record::BamRecord, rdata::HTSReadData) = ModIterator(record, rdata.auxmap.mm, rdata.auxmap.ml)
 
 
 """
