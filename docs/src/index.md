@@ -48,6 +48,6 @@ close(reader)
 
 Note that if interested in a large proportion of reads of a file it may be faster to iterate over entire file.
 
-## Documentation Content
+## Contents
 ```@contents
 ```
