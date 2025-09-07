@@ -178,13 +178,127 @@ if isdir("test/data")
     @testset "Modification iteration" begin
         bamreader = open(HTSFileReader, bamfile)
         recorddata = StencillingData(AuxMapMod())
+        for record in eachrecord(bamreader)
+            processread!(record, recorddata)
+            
+            mods = collect(ModIterator(record, recorddata))
+            @test mods == collect(ModIterator(record)) ### confirm both ways of constructing yield same iteration
+            @test all(mi -> mi.mod ∈ (mod_6mA, mod_5mC, mod_5hmC), mods)
+            @test all(mi -> 1 ≤ mi.pos ≤ querylength(record), mods)
 
+            mods_6mA  = filter(m -> m.mod == mod_6mA, mods)
+            mods_5mC  = filter(m -> m.mod == mod_5mC, mods)
+            mods_5hmC = filter(m -> m.mod == mod_5hmC, mods)
+
+            @test length(mods_5mC) == length(mods_5hmC)
+            @test getproperty.(mods_5mC, :pos) == getproperty.(mods_5hmC, :pos)
+
+
+            ### Ensure there are not more mods than the corresponding base 
+            sequence = seq(record)
+            posAT = ispositive(record) ? findall(==('A'), sequence) : findall(==('T'), sequence)
+            posCG = ispositive(record) ? findall(==('C'), sequence) : findall(==('G'), sequence)
+
+            @test length(mods_6mA) ≤ length(posAT)
+            @test length(mods_5mC) ≤ length(posCG) ### already confirmed that 5mC and 5hmC are identical positions
+                
+            @test all(m -> m.pos ∈ Set(posAT), mods_6mA)
+            @test all(m -> m.pos ∈ Set(posCG), mods_5mC)
+            break
+        end
+        
+        
+        close(bamreader)
     end
 end
 
+struct FireEntry
+    start::Int
+    stop::Int
+    length::Int
+    qual::Int 
+    refstart::Union{Int, Nothing}
+    refstop::Union{Int, Nothing}
+    reflength::Union{Int, Nothing}
+end
+
+function readfiredata(file="test/data/fire_nuc_msp.test.cram.tsv")
+
+    data = Dict{String, Dict{String, Vector{FireEntry}}}()
+
+    for line in eachline(file)
+        occursin(r"^Read", line) && continue
+        fields = split(line, '\t')
+        read = fields[1]
+        feature = fields[2]
+        start  = parse(Int, fields[3])
+        stop   = parse(Int, fields[4])
+        length = parse(Int, fields[5])
+        qual   = parse(Int, fields[6])
+        refstart  = isempty(fields[7]) ? 0 : parse(Int, fields[7])
+        refstop   = isempty(fields[8]) ? 0 : parse(Int, fields[8])
+        reflength = isempty(fields[9]) ? 0 : parse(Int, fields[9])
+
+        haskey(data, read) || (data[read] = Dict{String, Vector{FireEntry}}())
+        haskey(data[read], feature) || (data[read][feature] = FireEntry[])
+
+        push!(data[read][feature], FireEntry(start, stop, length, qual, refstart, refstop, reflength))
+        
+    end
+    data
+
+end
 
 
+if isdir("test/data")
+    @testset "FIRE fields" begin
+        bamreader = open(HTSFileReader, bamfile)
+        recorddata = StencillingData(AuxMapModFire())
+        firedata = readfiredata()
+        for record in eachrecord(bamreader)
+            processread!(record, recorddata)
+
+            ### nucleoseoms
+            ftnucs = firedata[qname(record)]["nucleosome"]
+            fn = collect(firenucs(record, recorddata))
+
+            if ispositive(record)
+                fn_start = first.(fn)
+                fn_stop = first.(fn) .+ last.(fn)
+            else
+                reverse!(fn)
+                fn_start = querylength(record) .- (first.(fn) .+ last.(fn))
+                fn_stop  = querylength(record) .- (first.(fn))
+            end
+            gn = firegenomecoords.(first.(fn), last.(fn), Ref(record), Ref(recorddata), onebased=false, ftstop=true)
+
+            @test fn_start   == getproperty.(ftnucs, :start)
+            @test fn_stop    == getproperty.(ftnucs, :stop)
+            @test last.(fn)  == getproperty.(ftnucs, :length)
+            @test first.(gn) == getproperty.(ftnucs, :refstart)
+            @test last.(gn)  == getproperty.(ftnucs, :refstop)
 
 
+            ### msps
+            ftmsps = firedata[qname(record)]["msp"]
+            fm = collect(firemsps(record, recorddata))
 
+            if ispositive(record)
+                fm_start = first.(fm)
+                fm_stop  = first.(fm) .+ getindex.(fm, 2)
+            else
+                reverse!(fm)
+                fm_start = querylength(record) .- (first.(fm) .+ getindex.(fm, 2))
+                fm_stop  = querylength(record) .- (first.(fm))
+            end
+            gm = firegenomecoords.(first.(fm), getindex.(fm, 2), Ref(record), Ref(recorddata), onebased=false, ftstop=true)
 
+            @test fm_start         == getproperty.(ftmsps, :start)
+            @test fm_stop          == getproperty.(ftmsps, :stop)
+            @test getindex.(fm, 2) == getproperty.(ftmsps, :length)
+            @test last.(fm)        == getproperty.(ftmsps, :qual)
+            @test first.(gm)       == getproperty.(ftmsps, :refstart)
+            @test last.(gm)        == getproperty.(ftmsps, :refstop)
+        end
+    end
+end
