@@ -3,6 +3,7 @@
 [![Build Status](https://github.com/owensnick/SMGReader.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/owensnick/SMGReader.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
 
+
  This package is a wrapper around `htslib` C library for BAM/CRAM file reading focussed on single molecule genomics.
 
 This package has been designed for fast iteration over BAM/CRAM files containing modification calls. Primarily tested and used on those output by [dorado](https://github.com/nanoporetech/dorado) from Oxford Nanopore.
