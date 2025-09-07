@@ -5,3 +5,5 @@ makedocs(sitename="SMGReader.jl",
     "Chromatin Stencilling" => "chromstencil.md",
     "Direct RNA" => "directrna.md",
     "API Reference" => "api.md"])
+
+    deploydocs(repo="github.com/exetergrdd/SMGReader.jl.git")
