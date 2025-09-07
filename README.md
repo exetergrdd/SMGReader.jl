@@ -4,7 +4,7 @@
 
 
 
- This package is a wrapper around `htslib` C library for BAM/CRAM file reading focussed on single molecule genomics.
+ This package is a reader for single molecule genomics BAM/CRAM files foccused on processing DNA and RNA methylations. It is a wrapper around `htslib` C library for BAM/CRAM file reading.
 
 This package has been designed for fast iteration over BAM/CRAM files containing modification calls. Primarily tested and used on those output by [dorado](https://github.com/nanoporetech/dorado) from Oxford Nanopore.
 
