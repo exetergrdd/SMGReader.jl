@@ -122,21 +122,84 @@ Map read coordinates to genome coordates that uses `alignmap` in `recorddata`,
   - `one-based = true`  returns one based inclusive coords
   - `one-based = false` returns zero based exclusive coords
 
-`onebased=true` for 1-based coordinates
 """
-@inline function genomecoords(pos, len, record::BamRecord, recorddata::HTSReadData; onebased=true)
+@inline function genomecoords(pos, len, record::BamRecord, recorddata::HTSReadData; onebased=true, ftstop=false, verbose=false)
     if ispositive(record)
-        start = recorddata.alignmap[pos]
-        stop  = recorddata.alignmap[pos + len - 1]
+        starti = pos
+        stopi = pos + len - 1
     else
-        start = recorddata.alignmap[record.core.l_qseq - (pos + len - 1) + 1]
-        stop  = recorddata.alignmap[record.core.l_qseq - pos + 1]
+        starti = record.core.l_qseq - (pos + len - 1) + 1
+        stopi = record.core.l_qseq - pos + 1
+    end
+
+    ### find first matching start base of interval
+    while iszero(recorddata.alignmap[starti]) && (starti < stopi)
+        starti += 1
+    end
+    start = recorddata.alignmap[starti]
+
+    ### if we found no matching bases in the interval then region is unaligned
+    if (starti == stopi) && iszero(start)
+        return 0, 0
     end
     start = ifelse(iszero(start), start, start + onebased)
-    stop  = ifelse(iszero(stop), stop, stop + 1)
+
+    #### Currently fiber-tools has a bug https://github.com/fiberseq/fibertools-rs/issues/90
+    #### ftstop = mirrors fiber-tools output for testing
+    if !ftstop
+        ### search for the matching stop coordinate
+        ### work backwards, this is guaranteed to find a nonzero position >= starti
+        while iszero(recorddata.alignmap[stopi]) && (stopi > starti)
+            stopi -= 1
+        end
+        stop = recorddata.alignmap[stopi]
+        stop  = ifelse(iszero(stop), stop, stop + 1)
+    else
+        
+
+        ### if current stop is zero work back until you find a mapped based
+        ### this is guaranteed as if there are none it would have returned above
+        ### then chose the next base for exclusive coords
+        ### if current stop is not zero then walk forward to find the next mapped base for exclusive coords
+
+        if iszero(recorddata.alignmap[stopi])
+            while iszero(recorddata.alignmap[stopi]) && (stopi > starti)
+                stopi -= 1
+            end
+            stop = recorddata.alignmap[stopi]
+            stop  = ifelse(iszero(stop), stop, stop + 1)
+        else
+            original_stopi = stopi
+            stopi += 1
+            verbose && println(stopi, "\t", recorddata.alignmap[stopi])
+            while (stopi < length(recorddata.alignmap)) && iszero(recorddata.alignmap[stopi])
+                stopi += 1
+                verbose && println(stopi, "\t", recorddata.alignmap[stopi])
+            end
+            verbose && println("Complete:\t", stopi, "\t", recorddata.alignmap[stopi])
+            stop = recorddata.alignmap[stopi]
+
+            ### if we got all the way to the end without an alignment skip back to the first nonzero mapped
+            if iszero(stop)
+                stop = recorddata.alignmap[original_stopi] + 1
+            end
+        end
+    end
 
     start, stop
 end
+
+"""
+    firegenomecoords(pos::Int, len::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
+
+Special version of `genomecoords` for fiber-tools and fire elements that are encoded 0-based.
+    
+  - `pos` is zero-based position on the read
+  - `one-based = true`  returns one based inclusive coords
+  - `one-based = false` returns zero based exclusive coords
+
+"""
+@inline firegenomecoords(pos, len, record, recorddata; onebased=true, ftstop=false, verbose=false) = genomecoords(pos + 1, len, record, recorddata, onebased=onebased, ftstop=ftstop, verbose=verbose)
 
 ### accessor functions for fire
 
