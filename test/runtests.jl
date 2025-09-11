@@ -111,9 +111,13 @@ if isdir("test/data")
         bamreader = open(HTSFileReader, bamfile)
         recorddata = StencillingData(AuxMapMod())
         blockdata = DirectRNAAlignBlocks(AuxMapMod())
+        autodata = StencillingData(autodetectaux(bamreader))
         for record in eachrecord(bamreader)
             processread!(record, recorddata)
             processread!(record, blockdata)
+            processread!(record, autodata)
+
+
             @test length(recorddata.alignmap) == querylength(record) 
             ### all record in this bam are mapped
             leftposindex = findfirst(!iszero, recorddata.alignmap)
@@ -125,7 +129,7 @@ if isdir("test/data")
             @test issorted(Iterators.filter(!iszero, recorddata.alignmap))
 
             ### compare alignmap and align blocks
-            @test recorddata.alignmap == blockdata.alignmap
+            @test recorddata.alignmap == blockdata.alignmap == autodata.alignmap
             @test blockdata.alignblocks[1].start == leftposition(record)
             @test blockdata.alignblocks[end].stop - 1 == rightposition(recorddata)  ### alignblocks are zero based exclusive!
             ### ensure blocks are nonoverlapping
