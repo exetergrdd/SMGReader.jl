@@ -14,29 +14,32 @@ function iteratorlength(it)
     n
 end
 
-@testset "SMGReader.jl" begin
-    reader = open(HTSFileReader, bamfile)
-    close(reader)
 
-    reader = open(HTSFileReader, cramfile)
-    close(reader)
+if isdir("test/data")
+    @testset "SMGReader.jl" begin
+        reader = open(HTSFileReader, bamfile)
+        close(reader)
 
-    @assert indexfile(bamfile) == "test/data/test.bam.bai"
-    @assert indexfile(cramfile) == "test/data/test.cram.crai"
+        reader = open(HTSFileReader, cramfile)
+        close(reader)
+
+        @assert indexfile(bamfile) == "test/data/test.bam.bai"
+        @assert indexfile(cramfile) == "test/data/test.cram.crai"
 
 
-    reader_bam  = open(HTSFileReader, bamfile)
-    reader_cram = open(HTSFileReader, bamfile)
-    @assert iteratorlength(eachrecord(reader_bam)) == iteratorlength(eachrecord(reader_cram))
-    
-    regions = [("chr1", 100253156:116796142), ("chr10", 69987747:72423136), ("chr2", 1:243199373)]
-    for (chrom, loc) in regions
-        @assert iteratorlength(eachintersection(reader_bam, chrom, loc)) == iteratorlength(eachintersection(reader_cram, chrom, loc))
+        reader_bam  = open(HTSFileReader, bamfile)
+        reader_cram = open(HTSFileReader, bamfile)
+        @assert iteratorlength(eachrecord(reader_bam)) == iteratorlength(eachrecord(reader_cram))
+        
+        regions = [("chr1", 100253156:116796142), ("chr10", 69987747:72423136), ("chr2", 1:243199373)]
+        for (chrom, loc) in regions
+            @assert iteratorlength(eachintersection(reader_bam, chrom, loc)) == iteratorlength(eachintersection(reader_cram, chrom, loc))
+        end
+        
+        close(reader_bam)
+        close(reader_cram)
+
     end
-    
-    close(reader_bam)
-    close(reader_cram)
-
 end
 
 @testset "VectorBuffer Tests" begin
