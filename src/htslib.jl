@@ -86,6 +86,7 @@ end
 
 # === Reader Type ===
 mutable struct HTSFileReader
+    file::String
     fp::htsFile_p
     hdr::sam_hdr_t_p
     idx::hts_idx_t_p
@@ -140,7 +141,7 @@ function openhts(path; idx_path=indexfile(path), bamthreads=Threads.nthreads())
 
     record = @ccall libhts.bam_init1()::bam1_t_p
 
-    HTSFileReader(fp, hdr, idx, record, C_NULL, false)
+    HTSFileReader(path, fp, hdr, idx, record, C_NULL, false)
 end
 
 """
