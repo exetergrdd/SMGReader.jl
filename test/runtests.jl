@@ -39,6 +39,10 @@ if isdir("test/data")
         close(reader_bam)
         close(reader_cram)
 
+        
+        @test typeof(autodetectaux(bamfile)) == AuxMapModFire
+        @test typeof(autodetectaux(cramfile)) == AuxMapModFire
+
     end
 end
 
