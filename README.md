@@ -1,7 +1,7 @@
 # SMGReader
 
 [![Build Status](https://github.com/owensnick/SMGReader.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/owensnick/SMGReader.jl/actions/workflows/CI.yml?query=branch%3Amain)
-
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://exetergrdd.github.io/SMGReader.jl/dev)
 
 
  This package is a reader for single molecule genomics BAM/CRAM files foccused on processing DNA and RNA methylations. It is a wrapper around `htslib` C library for BAM/CRAM file reading.
