@@ -127,7 +127,11 @@ end
 
 
 #### functions for specific and common auxillary maps
+"""
+    autodetectaux(file::String)
 
+Autodetect auxillary map of file. Only checks first record and assumes all records have the same aux fields. 
+"""
 function autodetectaux(file::String)
 
     bamreader = open(HTSFileReader, file)
@@ -174,6 +178,8 @@ function autodetectaux(file::String)
 
     auxmap
 end
+
+autodetectaux(reader::HTSFileReader) = autodetectaux(reader.file)
 
 
 abstract type AuxMap end
