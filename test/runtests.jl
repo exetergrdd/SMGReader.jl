@@ -1,6 +1,5 @@
 using SMGReader
 using Test
-using BenchmarkTools
 
 bamfile = "test/data/test.bam"
 cramfile = "test/data/test.cram"
