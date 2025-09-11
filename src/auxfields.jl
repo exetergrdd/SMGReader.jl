@@ -128,6 +128,53 @@ end
 
 #### functions for specific and common auxillary maps
 
+function autodetectaux(file::String)
+
+    bamreader = open(HTSFileReader, file)
+
+    record = read(bamreader)
+
+    hasmm = false
+    hasml = false
+    hasns = false
+    hasnl = false
+    hasas = false
+    hasal = false
+    hasaq = false
+
+    for af in AuxFieldIter(record)
+         (af.tag == (UInt8('M'), UInt8('M'))) && (hasmm = true)
+         (af.tag == (UInt8('M'), UInt8('L'))) && (hasml = true)
+         (af.tag == (UInt8('n'), UInt8('s'))) && (hasns = true)
+         (af.tag == (UInt8('n'), UInt8('l'))) && (hasnl = true)
+         (af.tag == (UInt8('a'), UInt8('s'))) && (hasas = true)
+         (af.tag == (UInt8('a'), UInt8('l'))) && (hasal = true)
+         (af.tag == (UInt8('a'), UInt8('q'))) && (hasaq = true)
+    end
+
+
+    if hasmm && hasml
+        if hasns || hasnl || hasas || hasal || hasaq
+            if hasns && hasnl && hasas && hasal && hasaq
+                auxmap = AuxMapModFire()
+            elseif hasns && hasnl && hasas && hasal
+                auxmap = AuxMapModFiberTools()
+            else
+                @warn "Incomplete FIRE/Tools fields ignoring and tracking MM/ML only"
+                auxmap = AuxMapMod()
+            end
+        else
+            auxmap = AuxMapMod()
+        end
+    else
+        error("No Modification MM/ML tags in $file")
+    end
+
+    close(bamreader)
+
+    auxmap
+end
+
 
 abstract type AuxMap end
 
@@ -143,6 +190,30 @@ mutable struct AuxMapMod <: AuxMap
 end
 AuxMapMod() = AuxMapMod(AuxField(), AuxField(), AuxField())
 
+
+"""
+    AuxMapModFiberTools()
+
+Construct and map of the aux data for a Fiber tools BAM/CRAM mapping fields (that missing the aq fire field)
+
+  - hp: Haplotype
+  - mm: Run length encoded mod bases
+  - ml: Mod Probability
+  - ns: Nucleosome positions
+  - nl: nucleosome length
+  - as: msp positions
+  - al: msp lengths
+"""
+mutable struct AuxMapModFiberTools <: AuxMap
+    hp::Union{AuxField, Nothing}
+    mm::AuxField
+    ml::AuxField
+    ns::AuxField
+    nl::AuxField
+    as::AuxField
+    al::AuxField
+end
+AuxMapModFiberTools() = AuxMapModFiberTools(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
 
 """
     AuxMapModFire()
