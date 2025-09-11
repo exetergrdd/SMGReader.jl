@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Chromatin Stencilling · SMGReader.jl</title><meta name="title" content="Chromatin Stencilling · SMGReader.jl"/><meta property="og:title" content="Chromatin Stencilling · SMGReader.jl"/><meta property="twitter:title" content="Chromatin Stencilling · SMGReader.jl"/><meta name="description" content="Documentation for SMGReader.jl."/><meta property="og:description" content="Documentation for SMGReader.jl."/><meta property="twitter:description" content="Documentation for SMGReader.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">SMGReader.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">SMGReader.jl</a></li><li class="is-active"><a class="tocitem" href>Chromatin Stencilling</a><ul class="internal"><li><a class="tocitem" href="#Iteration-of-modification"><span>Iteration of modification</span></a></li><li><a class="tocitem" href="#Access-to-FIRE-fields"><span>Access to FIRE fields</span></a></li><li><a class="tocitem" href="#Mapping-FIRE-fields-to-genome-coordinates"><span>Mapping FIRE fields to genome coordinates</span></a></li></ul></li><li><a class="tocitem" href="../directrna/">Direct RNA</a></li><li><a class="tocitem" href="../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Chromatin Stencilling</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Chromatin Stencilling</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/exetergrdd/SMGReader.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/exetergrdd/SMGReader.jl/blob/main/docs/src/chromstencil.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Chromatin-Stencilling"><a class="docs-heading-anchor" href="#Chromatin-Stencilling">Chromatin Stencilling</a><a id="Chromatin-Stencilling-1"></a><a class="docs-heading-anchor-permalink" href="#Chromatin-Stencilling" title="Permalink"></a></h1><p>This library is designed for streaming through a file handling a single read at a time avoiding excessive memory allocation. While it is possible to collect multiple reads into memory, see example below, this should be discouraged currently. </p><h2 id="Iteration-of-modification"><a class="docs-heading-anchor" href="#Iteration-of-modification">Iteration of modification</a><a id="Iteration-of-modification-1"></a><a class="docs-heading-anchor-permalink" href="#Iteration-of-modification" title="Permalink"></a></h2><p>Below is an example of calculating the total number of modification calls, note this is a simple example for all other uses you will want to preallocate <code>StencillingData</code> to help manage memory used during iteration:</p><pre><code class="language-julia hljs">using SMGReader
+using  DataStructures
+file = &quot;chromsten.cram&quot;
+reader = open(HTSFileReader, file)
+
+modcounts = counter(Modification)
+
+for record in eachrecord(reader)
+    for mi in ModIterator(record)
+        push!(modcounts, mi.mod)
+    end
+end
+close(reader)
+
+modcounts</code></pre><p>The <code>ModIterator</code> returns <code>ModificationInfo</code> which has the following fields</p><pre><code class="language-julia hljs">    mi.mod::Modification  ### the modification
+    strand::Bool          ### the strand of the modification
+    pos::Int              ### the position of the mod on the read in the direction of the read
+    prob::UInt8           ### mod probability [0,255], divide by 255 to get the probability.</code></pre><p>Supported modifications that <code>mi.mod</code> can take: Currently supported mod codes:</p><table><tr><th style="text-align: right">Enum value</th><th style="text-align: right">Modification</th><th style="text-align: right">BAM code</th></tr><tr><td style="text-align: right"><code>mod_6mA</code></td><td style="text-align: right">N6-methyladenine</td><td style="text-align: right"><code>a</code></td></tr><tr><td style="text-align: right"><code>mod_5mC</code></td><td style="text-align: right">5-methylcytosine</td><td style="text-align: right"><code>m</code></td></tr><tr><td style="text-align: right"><code>mod_5hmC</code></td><td style="text-align: right">5-hydroxymethylcytosine</td><td style="text-align: right"><code>h</code></td></tr><tr><td style="text-align: right"><code>mod_inosine</code></td><td style="text-align: right">Inosine</td><td style="text-align: right"><code>17596</code></td></tr><tr><td style="text-align: right"><code>mod_pseU</code></td><td style="text-align: right">Pseudouridine</td><td style="text-align: right"><code>17802</code></td></tr><tr><td style="text-align: right"><code>mod_4mC</code></td><td style="text-align: right">N4-methylcytosine</td><td style="text-align: right"><code>21839</code></td></tr></table><h3 id="Mapping-Read-Coordinates-to-the-Genome"><a class="docs-heading-anchor" href="#Mapping-Read-Coordinates-to-the-Genome">Mapping Read Coordinates to the Genome</a><a id="Mapping-Read-Coordinates-to-the-Genome-1"></a><a class="docs-heading-anchor-permalink" href="#Mapping-Read-Coordinates-to-the-Genome" title="Permalink"></a></h3><p>In BAM format the modifications are stored with respect to the strand of the read, we need to map these to the genome using the alignment information of the read. Below is an example for making a 6mA coverage track over a genomic interval. For this we need to preallocate a <code>StencillingData</code> type, this allocates memory to store information on how the read maps to the genome and index where the modification information is stored for each read:</p><pre><code class="language-julia hljs">using SMGReader
+using  DataStructures
+file = &quot;chromsten.cram&quot;
+reader = open(HTSFileReader, file)
+
+chrom, loc = &quot;chr10&quot;, 71027756:71163638 ### coordinates of the HK1 locus ## 1-based coords
+modthresh = 0.9 ## anything with mod prob &gt; 0.9 will be counted a modified
+n = length(loc)
+modcounts = zeros(n)
+basecounts = zeros(n)
+
+### Preallocate memory to store information about the read
+### AuxMapMod() specifies the MM/ML fields in the auxillary read data
+recorddata = StencillingData(AuxMapMod()) 
+
+for record in eachintersection(reader, chrom, loc)
+    processread!(record, recorddata)                 ## update reccorddata with new read 
+    for mi in ModIterator(record, recorddata) 
+        (mi.mod == mod_6mA) || continue              ## require that the mod is 6mA
+        genomepos = recorddata.alignmap[mi.pos]      ## 0-based coordinate
+        if !iszero(genomepos)                        ## if 0 position not in genome alignment
+            locpos = (genomepos + 1) - loc.start + 1 ## 1-based coords in interval
+            if mi.prob &gt; 0.9*255                     ## check its modified
+                modcounts[locpos] += 1               ## total modified counts at position
+            end
+            basecounts[locpos] += 1                  ## total bases called at position
+        end
+    end
+end
+close(reader)
+
+proportionmod = modcounts./basecount ### calculate the proportion modified</code></pre><h2 id="Access-to-FIRE-fields"><a class="docs-heading-anchor" href="#Access-to-FIRE-fields">Access to FIRE fields</a><a id="Access-to-FIRE-fields-1"></a><a class="docs-heading-anchor-permalink" href="#Access-to-FIRE-fields" title="Permalink"></a></h2><p>There are a number of convenience functions to access FIRE fields. There are two key sets of fields:</p><ul><li>Nucleosomes: auxillary field <code>ns</code> and <code>nl</code> specify their position and length in read coordinates</li><li>Methylation sensitive patches (MSPs): <code>as</code>, <code>al</code>, and <code>aq</code> specifies their position, length and quality<ul><li>MSP quality &lt;  0.9*255 intepreted as a accessible linker region</li><li>MSP quality &gt;= 0.9*255 interpreted as FIRE element. </li></ul></li></ul><p>To access this information, the key difference is a different auxillary map is needed <code>AuxMapModFire</code>.</p><pre><code class="language-julia hljs">...
+recorddata = StencillingData(AuxMapModFire())
+for record in eachrecord(reader)
+    processrecord!(record, reccorddata)
+    ## iterate over the nucleosomes in read coordinates
+    for (pos, len) in firenucs(record, recorddata)
+        ### do something 
+    end
+    ## iterate over the MSPs in read coordinates
+    for (pos, len, qual) in firemsps(record, recorddata)
+        ### do something 
+    end
+end
+...</code></pre><p>There are functions to access the fire positions, lengths, qualities etc. as vectors rather than iterating over them. Currently this is an internal API:</p><pre><code class="language-julia hljs">nucpos  = SMGReader.firenucpos(record, recorddata) 
+nuclen  = SMGReader.firenuclen(record, recorddata)
+
+msppos  = SMGReader.firemsppos(record, recorddata)  
+msplen  = SMGReader.firemsplen(record, recorddata)  
+mspqual = SMGReader.firemspqual(record, recorddata) </code></pre><h2 id="Mapping-FIRE-fields-to-genome-coordinates"><a class="docs-heading-anchor" href="#Mapping-FIRE-fields-to-genome-coordinates">Mapping FIRE fields to genome coordinates</a><a id="Mapping-FIRE-fields-to-genome-coordinates-1"></a><a class="docs-heading-anchor-permalink" href="#Mapping-FIRE-fields-to-genome-coordinates" title="Permalink"></a></h2><p>When mapping a FIRE field with a position and length to the genome, it is possible that either or both ends may be absent from the alignment. </p><p>This is currently down by constructing a convertor for a give record with <code>firegenome</code>. This API is a bit clunky and likely will be refined. However, it will skip over any fire field that maps incompletely to the genome. </p><pre><code class="language-julia hljs">...
+recorddata = StencillingData(AuxMapModFire())
+for record in eachrecord(reader)
+    processrecord!(record, reccorddata)
+    firegenomecoords = firegenome(record, recorddata)
+
+    ## iterate over the nucleosomes in genome coordinates
+    for (pos, len) in firegenomcoords(firenucs(record, recorddata))
+        ### do something 
+    end
+    ## iterate over the MSPs in genome coordinates
+    for (pos, len, qual) in firegenomcoords(firemsps(record, recorddata))
+        ### do something with genome coordinates
+    end
+end
+...</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« SMGReader.jl</a><a class="docs-footer-nextpage" href="../directrna/">Direct RNA »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Thursday 11 September 2025 14:20">Thursday 11 September 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
