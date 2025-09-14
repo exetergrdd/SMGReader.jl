@@ -29,7 +29,12 @@ if isdir("test/data")
 
         reader_bam  = open(HTSFileReader, bamfile)
         reader_cram = open(HTSFileReader, bamfile)
-        @assert iteratorlength(eachrecord(reader_bam)) == iteratorlength(eachrecord(reader_cram))
+        itbam  = eachrecord(reader_bam)
+        itcram = eachrecord(reader_cram)
+        nbam   = length(itbam)
+        ncram  = length(itcram)
+
+        @assert iteratorlength(itbam) == iteratorlength(itcram) == nbam == ncram
         
         regions = [("chr1", 100253156:116796142), ("chr10", 69987747:72423136), ("chr2", 1:243199373)]
         for (chrom, loc) in regions
