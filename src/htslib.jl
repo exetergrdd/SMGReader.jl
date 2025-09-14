@@ -250,7 +250,8 @@ Construct an iterator of `reader` in record order. Multiple successive calls wil
 end
 
 @inline Base.eltype(::Type{RecordIterator}) = BamRecord
-@inline Base.IteratorSize(::RecordIterator) = Base.SizeUnknown()
+@inline Base.IteratorSize(::RecordIterator) = Base.HasLength()
+@inline Base.length(iter::RecordIterator) = nrecords(iter.reader)
 @inline Base.iterate(iter::RecordIterator) = iterate(iter, nothing)
 @inline function Base.iterate(iter::RecordIterator, state)
     success = read!(iter.reader, iter.record)
