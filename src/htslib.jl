@@ -158,6 +158,35 @@ function Base.close(reader::HTSFileReader)
 end
 
 
+"""
+    nrecords(reader::HTSFileReader)
+
+Return the total number of reads in the file, using the index.
+"""
+function nrecords(reader::HTSFileReader)
+    nref = @ccall libhts.sam_hdr_nref(reader.hdr::sam_hdr_t_p)::Cint
+
+    total = 0
+    mapped = Ref{UInt64}()
+    unmapped = Ref{UInt64}()
+
+    for tid in 0:(nref-1)
+        @ccall libhts.hts_idx_get_stat(
+            reader.idx::hts_idx_t_p,
+            tid::Cint,
+            mapped::Ref{UInt64},
+            unmapped::Ref{UInt64}
+        )::Cint
+        total += mapped[] + unmapped[]
+    end
+
+    no_coor = @ccall libhts.hts_idx_get_n_no_coor(reader.idx::hts_idx_t_p)::UInt64
+    total += no_coor
+
+    return Int(total)
+end
+
+
 ### allocate initial bam record for use when iterating a reader
 @inline function allocateinitialbam(reader::HTSFileReader)
     bam = unsafe_load(Ptr{bam1_t_layout}(reader.record))
