@@ -36,6 +36,8 @@ if isdir("test/data")
             @assert iteratorlength(eachintersection(reader_bam, chrom, loc)) == iteratorlength(eachintersection(reader_cram, chrom, loc))
         end
         
+        @test iteratorlength(eachline(samfile)) == nrecords(reader_bam) == nrecords(reader_cram)
+
         close(reader_bam)
         close(reader_cram)
 
