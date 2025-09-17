@@ -16,6 +16,11 @@ Currently supported mod codes:
 | `mod_inosine`| Inosine            | `17596`      |
 | `mod_pseU`   | Pseudouridine      | `17802`      |
 | `mod_4mC`    | N4-methylcytosine  | `21839`    |
+| `mod_2OmeA`  | 2'-O-methyladenosine | `69426` |
+| `mod_2OmeC`  | 2'-O-methylcytidine | `19228` |
+| `mod_2OmeG`  | 2'-O-methylguanosine | `19229` |
+| `mod_2OmeU`  | 2'-O-methyluridine | `19227` |
+
 """
 @enum Modification begin
     mod_6mA
@@ -24,6 +29,10 @@ Currently supported mod codes:
     mod_inosine
     mod_pseU
     mod_4mC
+    mod_2OmeA
+    mod_2OmeC
+    mod_2OmeG
+    mod_2OmeU
     mod_C
     mod_A
     mod_T
@@ -62,6 +71,7 @@ Parse the modcode at position `i` in bytearray `data`
 Return `(mod, next_i)` where `mod` is a `Modifcation` and `next_i` is the next index after the modcode in the bytearray.
 """
 @inline function parse_mod_code(data, i)
+    ## TODO: have performant way for these not to be hardcoded
     if data[i] == UInt8('a')
         return mod_6mA, i + 1
     elseif data[i] == UInt8('m')
@@ -79,16 +89,37 @@ Return `(mod, next_i)` where `mod` is a `Modifcation` and `next_i` is the next i
            (data[i+2] == UInt8('8')) && 
            (data[i+3] == UInt8('0')) && 
            (data[i+4] == UInt8('2')) && 
-           
         return mod_pseU, i + 5
-        
     elseif (data[i]   == UInt8('2')) && 
            (data[i+1] == UInt8('1')) && 
            (data[i+2] == UInt8('8')) && 
            (data[i+3] == UInt8('3')) && 
            (data[i+4] == UInt8('9')) && 
-           
         return mod_4mC, i + 5
+    elseif (data[i]   == UInt8('6')) && 
+           (data[i+1] == UInt8('9')) && 
+           (data[i+2] == UInt8('4')) && 
+           (data[i+3] == UInt8('2')) && 
+           (data[i+4] == UInt8('6')) && 
+        return mod_2OmeA, i + 5
+    elseif (data[i]   == UInt8('1')) && 
+           (data[i+1] == UInt8('9')) && 
+           (data[i+2] == UInt8('2')) && 
+           (data[i+3] == UInt8('2')) && 
+           (data[i+4] == UInt8('8')) && 
+        return mod_2OmeC, i + 5
+    elseif (data[i]   == UInt8('1')) && 
+           (data[i+1] == UInt8('9')) && 
+           (data[i+2] == UInt8('2')) && 
+           (data[i+3] == UInt8('2')) && 
+           (data[i+4] == UInt8('9')) && 
+        return mod_2OmeG, i + 5
+    elseif (data[i]   == UInt8('1')) && 
+           (data[i+1] == UInt8('9')) && 
+           (data[i+2] == UInt8('2')) && 
+           (data[i+3] == UInt8('2')) && 
+           (data[i+4] == UInt8('7')) && 
+        return mod_2OmeU, i + 5
 
     elseif  data[i] == UInt8('C') ### invalid mod code that appears to be output but modkit when no modifications are called due to low base quality.
         return mod_C, i + 1
@@ -100,10 +131,12 @@ Return `(mod, next_i)` where `mod` is a `Modifcation` and `next_i` is the next i
         return mod_G, i + 1
     else
         iob = IOBuffer()
-        for j = eachindex(data)
-            (data[j] == UInt8(',')) && break
-            write(iob, data[j])
+        while i < length(data)
+            (data[i] == UInt8(',')) && break
+            write(iob, data[i])
+            i += 1
         end
+        
         s = String(take!(iob))
         error("Unrecognised mod code: $s")
             
