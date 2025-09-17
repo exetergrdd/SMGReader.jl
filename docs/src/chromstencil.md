@@ -40,6 +40,10 @@ Currently supported mod codes:
 | `mod_inosine`| Inosine            | `17596`      |
 | `mod_pseU`   | Pseudouridine      | `17802`      |
 | `mod_4mC`    | N4-methylcytosine  | `21839`    |
+| `mod_2OmeA`  | 2'-O-methyladenosine | `69426` |
+| `mod_2OmeC`  | 2'-O-methylcytidine | `19228` |
+| `mod_2OmeG`  | 2'-O-methylguanosine | `19229` |
+| `mod_2OmeU`  | 2'-O-methyluridine | `19227` |
 
 ### Mapping Read Coordinates to the Genome
 In BAM format the modifications are stored with respect to the strand of the read, we need to map these to the genome using the alignment information of the read. Below is an example for making a 6mA coverage track over a genomic interval. For this we need to preallocate a `StencillingData` type, this allocates memory to store information on how the read maps to the genome and index where the modification information is stored for each read:
