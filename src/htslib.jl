@@ -135,9 +135,13 @@ function openhts(path; idx_path=indexfile(path), bamthreads=Threads.nthreads())
     hdr = @ccall libhts.sam_hdr_read(fp::htsFile_p)::sam_hdr_t_p
     hdr == C_NULL && error("Failed to read header")
     
-    ### currently requires an index
-    idx = @ccall libhts.sam_index_load(fp::htsFile_p, idx_path::Cstring)::hts_idx_t_p
-    idx == C_NULL && error("Failed to load index for $idx_path")
+    if isfile(idx_path)
+        ### load default index if present
+        idx = @ccall libhts.sam_index_load(fp::htsFile_p, idx_path::Cstring)::hts_idx_t_p
+        idx == C_NULL && error("Failed to load index for $idx_path")
+    else
+        idx = C_NULL
+    end
 
     record = @ccall libhts.bam_init1()::bam1_t_p
 
@@ -166,10 +170,10 @@ Return the total number of reads in the file, using the index.
 function nrecords(reader::HTSFileReader)
     nref = @ccall libhts.sam_hdr_nref(reader.hdr::sam_hdr_t_p)::Cint
 
+
     total = 0
     mapped = Ref{UInt64}()
     unmapped = Ref{UInt64}()
-
     for tid in 0:(nref-1)
         @ccall libhts.hts_idx_get_stat(
             reader.idx::hts_idx_t_p,
