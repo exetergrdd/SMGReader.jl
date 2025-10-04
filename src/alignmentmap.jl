@@ -78,7 +78,7 @@ end
 """
     alignmentblocks!(record::BamRecord, alignblocks::VectorBuffer{AlignBlock})
 
-In place update of alignment blocks for a `record`
+In place update of alignment blocks for a `record`. *Note* alignment blocks are zero-based exclusive!
 """
 @inline function alignmentblocks!(record::BamRecord, alignblocks::VectorBuffer{AlignBlock})
     offset = record.core.l_qname + 1
