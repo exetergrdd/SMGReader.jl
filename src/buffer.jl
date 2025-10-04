@@ -29,7 +29,7 @@ end
 ### abstract vector interface
 @inline Base.size(buff::VectorBuffer) = (buff.len,)
 @inline Base.axes(buff::VectorBuffer) = (Base.OneTo(buff.len),)
-@inline Base.eachindex(buf::VectorBuffer) = Base.OneTo(buf.len)
+@inline Base.eachindex(buff::VectorBuffer) = Base.OneTo(buff.len)
 @inline Base.IndexStyle(::Type{<:VectorBuffer}) = IndexLinear()
 
 """
