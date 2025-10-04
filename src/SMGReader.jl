@@ -1,6 +1,6 @@
 module SMGReader
 
-export  HTSFileReader, indexfile, BamRecord, nrecords,
+export  HTSFileReader, indexfile, BamRecord, nrecords, referencedict,
         eachintersection, eachrecord,
         qname, refname, cigarvec, cigarstring, qual, ispositive, validflag, seq, flag, leftposition, mappingquality, matepos, materefname, querylength, templatelength, haplotype, hashaplotype, rightposition,
         AuxField, AuxFieldIter, AuxMapMod, AuxMapModFire, AuxMapModFiberTools, autodetectaux, Modification, ModificationInfo, ModIterator, 

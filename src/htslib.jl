@@ -190,6 +190,26 @@ function nrecords(reader::HTSFileReader)
     return Int(total)
 end
 
+"""
+    referencedict(reader::HTSFileReader)
+
+Build a Int32 => String reference dict from a file
+
+"""
+function referencedict(reader::HTSFileReader)
+    nrefs = @ccall libhts.sam_hdr_nref(reader.hdr::sam_hdr_t_p)::Cint
+    refs = Dict{Int32,String}()
+    sizehint!(refs, nrefs)
+    for tid in 0:(nrefs-1)
+        chrom_ptr = @ccall libhts.sam_hdr_tid2name(reader.hdr::sam_hdr_t_p, tid::Cint)::Ptr{Cchar}
+        refs[tid] = unsafe_string(chrom_ptr)
+    end
+    return refs
+end
+
+
+
+
 
 ### allocate initial bam record for use when iterating a reader
 @inline function allocateinitialbam(reader::HTSFileReader)
