@@ -246,7 +246,7 @@ This is the reverse version of `findnextbase` for use in reverse strand aligned 
 
             if base1 == base
                 remaining -= 1
-                iszero(remaining) && return seqpos -1
+                iszero(remaining) && return seqpos - 1
             end
 
            
@@ -326,7 +326,7 @@ ModIterator(record::BamRecord, rdata::HTSReadData) = ModIterator(record, rdata.a
   - `ml_pos::Int`: Position in the ML vector
   - `seq_pos::Int`: Position in the bam sequence
 """
-mutable struct ModIteratorState
+struct ModIteratorState
     newrecord::Bool
     base::UInt8
     strand::Bool
@@ -348,73 +348,74 @@ end
     initial = ModIteratorState(true, 0x00, true, mod_6mA, iter.mmaux.start, iter.mlaux.start, 1)
     iterate(iter, initial)
 end
+
+
 @inline function Base.iterate(iter::ModIterator, state)
     currentrun = 0
-    @inbounds while state.mm_pos < iter.mmaux.stop ### data[iter.mmaux.stop] = null
-        if state.newrecord
+
+    newrecord = state.newrecord
+    base      = state.base
+    strand    = state.strand
+    mod       = state.mod
+    mm_pos    = state.mm_pos
+    ml_pos    = state.ml_pos
+    seq_pos   = state.seq_pos
+
+    
+    @inbounds while mm_pos < iter.mmaux.stop ### data[iter.mmaux.stop] = null
+        if newrecord
             ## mod code of the format
 
             ## [ACGTUN][+-][modcode][.?]
             ## initial base flip to complement if its a reverse strand read
             ## base is the modification that we need to search for in the read sequence which goes with genome strand
-            state.base = getmodbasestrand(iter.record.data[state.mm_pos], ispositive(iter.record))
-            state.mm_pos += 1
+            base = getmodbasestrand(iter.record.data[mm_pos], ispositive(iter.record))
+            mm_pos += 1
             ## strand of mod on the read
-            state.strand = iter.record.data[state.mm_pos] == UInt8('+')
-            state.mm_pos += 1
+            strand = iter.record.data[mm_pos] == UInt8('+')
+            mm_pos += 1
             ## mod code
-            state.mod, state.mm_pos = parse_mod_code(iter.record.data, state.mm_pos)
-            ## advance passed [.?]
-            state.mm_pos += 1
+            mod, mm_pos = parse_mod_code(iter.record.data, mm_pos)
+            ## advance past [.?]
+            mm_pos += 1
             
             ### it is possible that no modifications are called 
             ### e.g. modkit call mods appears to output C+C?;A+a
-       
-            if iter.record.data[state.mm_pos] == UInt8(';')
-                state.mm_pos += 1 ### skip over the ;
-                state.newrecord = true
+            if iter.record.data[mm_pos] == UInt8(';')
+                mm_pos += 1 ### skip over the ;
+                newrecord = true
                 continue
             end
-         
-            state.seq_pos = 0
+            seq_pos = ifelse(ispositive(iter.record), 0, querylength(iter.record) + 1)
             currentrun = 0
-            state.newrecord = false
-            state.mm_pos += 1
-            continue
-        end
-            
-        
-        if (iter.record.data[state.mm_pos] == UInt8(',')) || (iter.record.data[state.mm_pos] == UInt8(';'))
-            ## run complete 
-            
-            ### here check for strand
-            
-            if ispositive(iter.record)
-                state.seq_pos = findnextbase(iter.record, state.base, state.seq_pos + 1, currentrun)
-            else
-                rpos =  iter.record.core.l_qseq - (state.seq_pos + 1) + 1
-                rpos = findprevbase(iter.record, state.base, rpos, currentrun)
-                state.seq_pos = iter.record.core.l_qseq - rpos + 1
-                
-            end
-            modpos = ifelse(ispositive(iter.record), state.seq_pos, iter.record.core.l_qseq - state.seq_pos + 1)
-
- 
-            modinfo = ModificationInfo(state.mod, state.strand, modpos, iter.record.data[state.ml_pos])         
-
-            state.newrecord = iter.record.data[state.mm_pos] == UInt8(';')
-            state.mm_pos += 1
-            state.ml_pos += 1
-            
-            return (modinfo, state)               
+            newrecord = false
+            mm_pos += 1
         else
-            currentrun = currentrun*10 + (iter.record.data[state.mm_pos] - 48)
-        end 
-            
-        state.mm_pos += 1
+            if (iter.record.data[mm_pos] == UInt8(',')) || (iter.record.data[mm_pos] == UInt8(';'))
+    
+                if ispositive(iter.record)
+                    seq_pos = findnextbase(iter.record, base, seq_pos + 1, currentrun)
+                    modpos = seq_pos
+                else
+                    seq_pos = findprevbase(iter.record, base, seq_pos - 1, currentrun)
+                    modpos = querylength(iter.record) - seq_pos + 1
+                end
+
+                modinfo = ModificationInfo(mod, strand, modpos, iter.record.data[ml_pos])         
+                newrecord = iter.record.data[mm_pos] == UInt8(';')
+                mm_pos += 1
+                ml_pos += 1
+                return modinfo, ModIteratorState(newrecord, base, strand, mod, mm_pos, ml_pos, seq_pos)         
+            else
+                currentrun = currentrun*10 + (iter.record.data[mm_pos] - 48)
+            end 
+                
+            mm_pos += 1
+        end
     end
     return nothing
 end
 
-@inline Base.IteratorSize(::ModIterator) = Base.SizeUnknown()
 @inline Base.eltype(::Type{ModIterator}) = ModificationInfo
+@inline Base.IteratorSize(::ModIterator) = Base.HasLength()
+@inline Base.length(iter::ModIterator) = iter.mlaux.stop - iter.mlaux.start + 1
