@@ -14,7 +14,6 @@ function iteratorlength(it)
     n
 end
 
-
 if isdir("test/data")
     @testset "SMGReader.jl" begin
         reader = open(HTSFileReader, bamfile)
@@ -198,7 +197,10 @@ if isdir("test/data")
         for record in eachrecord(bamreader)
             processread!(record, recorddata)
             
-            mods = collect(ModIterator(record, recorddata))
+            modit = ModIterator(record, recorddata)
+            modlength = length(modit)
+            mods = collect(modit)
+            @test length(mods) == modlength
             @test mods == collect(ModIterator(record)) ### confirm both ways of constructing yield same iteration
             @test all(mi -> mi.mod ∈ (mod_6mA, mod_5mC, mod_5hmC), mods)
             @test all(mi -> 1 ≤ mi.pos ≤ querylength(record), mods)
