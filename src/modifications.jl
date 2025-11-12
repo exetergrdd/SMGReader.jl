@@ -6,7 +6,7 @@
 Enumerates supported DNA/RNA modification types, such as 6mA, 5mC, 5hmC, inosine, pseudouridine, and others.
 Used to identify the type of modification parsed from MM/ML fields.
 
-Currently supported mod codes:
+Currently supported mod codes for DNA and RNA:
 
 | Enum value   | Modification        | BAM code |
 |--------------|--------------------|----------|
