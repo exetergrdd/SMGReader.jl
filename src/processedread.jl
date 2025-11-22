@@ -77,9 +77,9 @@ end
 """
     rightposition(recorddata::HTSReadData)
 
-Get the right position of alignment on genome.
+Get the right position of alignment on genome. 0-based exclusive coordinates
 """
-@inline rightposition(recorddata::HTSReadData) = recorddata.alignmap[findlast(!iszero, recorddata.alignmap)]
+@inline rightposition(recorddata::HTSReadData) = recorddata.alignmap[findlast(!iszero, recorddata.alignmap)] + 1
 
 
 """
