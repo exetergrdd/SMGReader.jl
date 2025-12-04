@@ -268,11 +268,12 @@ Construct map of auxillary data from `record` identifying fields specified by `a
         end
         !isnothing(mm) && !isnothing(ml) && !isnothing(hp) && break
     end
-    
-    (isnothing(mm) || isnothing(ml)) && error("MM/ML not found")
+    sucesss = true
+    (isnothing(mm) || isnothing(ml)) && (success = false) # error("MM/ML not found")
     auxmap.hp = hp
     auxmap.mm = mm
     auxmap.ml = ml
+    success
 end
 
 @inline function auxmap!(record, auxmap::AuxMapModFire)
@@ -317,9 +318,9 @@ end
         
         (totalrecords == totalfields) && break
     end
-    
-    (isnothing(mm) || isnothing(ml)) && error("MM/ML not found")
-    (isnothing(ns) || isnothing(nl) || isnothing(as) || isnothing(al) || isnothing(aq)) && error("Fire Aux fields  not found")
+    success = true
+    (isnothing(mm) || isnothing(ml)) && (success = false) # error("MM/ML not found")
+    (isnothing(ns) || isnothing(nl) || isnothing(as) || isnothing(al) || isnothing(aq)) && (success = false)  #error("Fire Aux fields  not found")
     
     
     auxmap.hp = hp
@@ -331,4 +332,5 @@ end
     auxmap.al = al
     auxmap.aq = aq
     auxmap
+    success
 end
