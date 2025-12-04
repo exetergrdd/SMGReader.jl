@@ -254,83 +254,106 @@ AuxMapModFire() = AuxMapModFire(AuxField(), AuxField(), AuxField(), AuxField(), 
 Construct map of auxillary data from `record` identifying fields specified by `auxmap`.
 """
 @inline function auxmap!(record::BamRecord, auxmap::AuxMapMod)
-    hp = nothing
-    mm = AuxField()
-    ml = AuxField()
+    hp_set = false
+    mm_set = false
+    ml_set = false
     
     for af in AuxFieldIter(record)
         if af.tag == (UInt8('H'), UInt8('P'))
-            hp = af
+            auxmap.hp = af
+            hp_set = true
         elseif af.tag == (UInt8('M'), UInt8('M'))
-            mm = af
+            auxmap.mm = af
+            mm_set = true
         elseif af.tag == (UInt8('M'), UInt8('L'))
-            ml = af
+            auxmap.ml = af
+            ml_set = true
         end
         !isnothing(mm) && !isnothing(ml) && !isnothing(hp) && break
     end
-    sucesss = true
-    (isnothing(mm) || isnothing(ml)) && (success = false) # error("MM/ML not found")
-    auxmap.hp = hp
-    auxmap.mm = mm
-    auxmap.ml = ml
-    success
+    !hp_set && (auxmap.hp = nothing)
+    
+    (!mm_set || !ml_set) && error("MM/ML not found")
+
+    return true
+    # (isnothing(mm) || isnothing(ml)) && (success = false) # error("MM/ML not found")
+    # auxmap.hp = hp
+    # auxmap.mm = mm
+    # auxmap.ml = ml
+    # success
 end
 
 @inline function auxmap!(record, auxmap::AuxMapModFire)
-    hp = nothing
-    mm =  AuxField()
-    ml =  AuxField()
-    ns =  AuxField()
-    nl =  AuxField()
-    as =  AuxField()
-    al =  AuxField()
-    aq =  AuxField()
+    hp_set = false
+    mm_set = false
+    ml_set = false
+    ns_set = false
+    nl_set = false
+    as_set = false
+    al_set = false
+    aq_set = false
     
     totalfields = 8
     totalrecords = 0
     
     for af in AuxFieldIter(record)
         if af.tag == (UInt8('H'), UInt8('P'))
-            hp = af
+            auxmap.hp = af
+            hp_set = true
             totalrecords += 1
         elseif af.tag == (UInt8('M'), UInt8('M'))
-            mm = af
+            auxmap.mm = af
+            mm_set = true
             totalrecords += 1
         elseif af.tag == (UInt8('M'), UInt8('L'))
-            ml = af
+            auxmap.ml = af
+            ml_set = true
             totalrecords += 1
         elseif af.tag == (UInt8('n'), UInt8('s'))
-            ns = af
+            auxmap.ns = af
+            ns_set = true
             totalrecords += 1
         elseif af.tag == (UInt8('n'), UInt8('l'))
-            nl = af
+            auxmap.nl = af
+            nl_set = true
             totalrecords += 1
         elseif af.tag == (UInt8('a'), UInt8('s'))
-            as = af
+            auxmap.as = af
+            as_set = true
             totalrecords += 1
         elseif af.tag == (UInt8('a'), UInt8('l'))
-            al = af
+            auxmap.al = af
+            al_set = true
             totalrecords += 1
         elseif af.tag == (UInt8('a'), UInt8('q'))
-            aq = af
+            auxmap.aq = af
+            aq_set = true
             totalrecords += 1
         end
         
         (totalrecords == totalfields) && break
     end
-    success = true
-    (isnothing(mm) || isnothing(ml)) && (success = false) # error("MM/ML not found")
-    (isnothing(ns) || isnothing(nl) || isnothing(as) || isnothing(al) || isnothing(aq)) && (success = false)  #error("Fire Aux fields  not found")
+
+
+    !hp_set && (auxmap.hp = nothing)
+    (!mm_set || !ml_set) && error("MM/ML not found")
+    
+    if ns_set && nl_set && as_set && al_set && aq_set
+        return true
+    else
+        return false
+    end
+    # (isnothing(ns) || isnothing(nl) || isnothing(as) || isnothing(al) || isnothing(aq)) && (success = false)  #error("Fire Aux fields  not found")
     
     
-    auxmap.hp = hp
-    auxmap.mm = mm
-    auxmap.ml = ml
-    auxmap.ns = ns
-    auxmap.nl = nl
-    auxmap.as = as
-    auxmap.al = al
-    auxmap.aq = aq
-    auxmap
-    success
+    # auxmap.hp = hp
+    # auxmap.mm = mm
+    # auxmap.ml = ml
+    # auxmap.ns = ns
+    # auxmap.nl = nl
+    # auxmap.as = as
+    # auxmap.al = al
+    # auxmap.aq = aq
+    # auxmap
+    # success
 end
