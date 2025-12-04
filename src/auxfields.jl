@@ -255,8 +255,8 @@ Construct map of auxillary data from `record` identifying fields specified by `a
 """
 @inline function auxmap!(record::BamRecord, auxmap::AuxMapMod)
     hp = nothing
-    mm = nothing
-    ml = nothing
+    mm = AuxField()
+    ml = AuxField()
     
     for af in AuxFieldIter(record)
         if af.tag == (UInt8('H'), UInt8('P'))
@@ -278,13 +278,13 @@ end
 
 @inline function auxmap!(record, auxmap::AuxMapModFire)
     hp = nothing
-    mm = nothing
-    ml = nothing
-    ns = nothing
-    nl = nothing
-    as = nothing
-    al = nothing
-    aq = nothing
+    mm =  AuxField()
+    ml =  AuxField()
+    ns =  AuxField()
+    nl =  AuxField()
+    as =  AuxField()
+    al =  AuxField()
+    aq =  AuxField()
     
     totalfields = 8
     totalrecords = 0
