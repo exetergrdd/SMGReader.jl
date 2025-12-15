@@ -328,5 +328,3 @@ if isdir("test/data")
         end
     end
 end
-
-autodetecthtsdata(bamfile)
