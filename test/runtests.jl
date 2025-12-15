@@ -114,7 +114,12 @@ end
 ### tests for alignmap 
 if isdir("test/data")
     @testset "Process data and alignmaps" begin
+
+        @test autodetecthtsdata(bamfile) == StencillingData
+        @test autodetecthtsdata(cramfile) == StencillingData
         bamreader = open(HTSFileReader, bamfile)
+        @test autodetecthtsdata(bamreader) == StencillingData
+        
         recorddata = StencillingData(AuxMapMod())
         blockdata = DirectRNAAlignBlocks(AuxMapMod())
         autodata = StencillingData(autodetectaux(bamreader))
@@ -137,7 +142,7 @@ if isdir("test/data")
             ### compare alignmap and align blocks
             @test recorddata.alignmap == blockdata.alignmap == autodata.alignmap
             @test blockdata.alignblocks[1].start == leftposition(record)
-            @test blockdata.alignblocks[end].stop - 1 == rightposition(recorddata)  ### alignblocks are zero based exclusive!
+            @test blockdata.alignblocks[end].stop == rightposition(recorddata)  ### both are zero based exclusive!
             ### ensure blocks are nonoverlapping
             for i in 2:length(blockdata.alignblocks)
                 @test blockdata.alignblocks[i-1].stop ≤ blockdata.alignblocks[i].start
@@ -324,3 +329,4 @@ if isdir("test/data")
     end
 end
 
+autodetecthtsdata(bamfile)
