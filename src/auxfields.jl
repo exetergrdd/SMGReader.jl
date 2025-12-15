@@ -132,11 +132,9 @@ end
 
 Autodetect auxillary map of file. Only checks first record and assumes all records have the same aux fields. 
 """
-function autodetectaux(file::String)
+function autodetectaux(file::String; totalreads = 10)
 
-    bamreader = open(HTSFileReader, file)
-
-    record = read(bamreader)
+    reader = open(HTSFileReader, file)
 
     hasmm = false
     hasml = false
@@ -145,18 +143,21 @@ function autodetectaux(file::String)
     hasas = false
     hasal = false
     hasaq = false
-
-    for af in AuxFieldIter(record)
-         (af.tag == (UInt8('M'), UInt8('M'))) && (hasmm = true)
-         (af.tag == (UInt8('M'), UInt8('L'))) && (hasml = true)
-         (af.tag == (UInt8('n'), UInt8('s'))) && (hasns = true)
-         (af.tag == (UInt8('n'), UInt8('l'))) && (hasnl = true)
-         (af.tag == (UInt8('a'), UInt8('s'))) && (hasas = true)
-         (af.tag == (UInt8('a'), UInt8('l'))) && (hasal = true)
-         (af.tag == (UInt8('a'), UInt8('q'))) && (hasaq = true)
+    t = 0
+    for record in eachrecord(reader)
+        for af in AuxFieldIter(record)
+            (af.tag == (UInt8('M'), UInt8('M'))) && (hasmm = true)
+            (af.tag == (UInt8('M'), UInt8('L'))) && (hasml = true)
+            (af.tag == (UInt8('n'), UInt8('s'))) && (hasns = true)
+            (af.tag == (UInt8('n'), UInt8('l'))) && (hasnl = true)
+            (af.tag == (UInt8('a'), UInt8('s'))) && (hasas = true)
+            (af.tag == (UInt8('a'), UInt8('l'))) && (hasal = true)
+            (af.tag == (UInt8('a'), UInt8('q'))) && (hasaq = true)
+        end
+        t += 1
+        (t == totalreads) && break
     end
-
-
+    
     if hasmm && hasml
         if hasns || hasnl || hasas || hasal || hasaq
             if hasns && hasnl && hasas && hasal && hasaq
@@ -174,7 +175,7 @@ function autodetectaux(file::String)
         error("No Modification MM/ML tags in $file")
     end
 
-    close(bamreader)
+    close(reader)
 
     auxmap
 end
