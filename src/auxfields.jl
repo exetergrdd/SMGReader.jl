@@ -165,7 +165,14 @@ function autodetectaux(file::String; totalreads = 10)
             elseif hasns && hasnl && hasas && hasal
                 auxmap = AuxMapModFiberTools()
             else
-                @warn "Incomplete FIRE/Tools fields ignoring and tracking MM/ML only"
+                ### Currently there is a clash between Nanopore ns and fibertools ns tag
+                # https://github.com/fiberseq/fibertools-rs/issues/97
+                # https://software-docs.nanoporetech.com/dorado/latest/basecaller/sam_spec/?h=ns#read-tags
+                # is hasns is true assume its this clash, if not warn that FIRE/fibertools fields are incompelte
+                if !hasns
+                    @warn "Incomplete FIRE/fibertools fields ignoring and tracking MM/ML only"
+                end
+                
                 auxmap = AuxMapMod()
             end
         else
