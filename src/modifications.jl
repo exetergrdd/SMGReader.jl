@@ -419,3 +419,32 @@ end
 @inline Base.eltype(::Type{ModIterator}) = ModificationInfo
 @inline Base.IteratorSize(::ModIterator) = Base.HasLength()
 @inline Base.length(iter::ModIterator) = iter.mlaux.stop - iter.mlaux.start + 1
+
+
+"""
+    autodetectmods(file::String; totalreads=10)
+
+    Detect a tuple of Modifications in `file` from first `totalreads` reads.
+"""
+function autodetectmods(file::String; totalreads=10)
+    reader = open(HTSFileReader, file)
+
+    modpresent = falses(length(instances(Modification)))
+    t = 0
+    for record in eachrecord(reader)
+        validflag(record) || continue
+        
+        for mi in ModIterator(record)
+            modpresent[Int(mi.mod) + 1] = true
+        end
+        
+        t += 1
+        (t == totalreads) && break
+    end
+    close(reader)
+
+    mods = ([Modification(k-1) for (k, present) in enumerate(modpresent) if present]...,)
+
+    mods
+
+end
