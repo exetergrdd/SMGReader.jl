@@ -192,6 +192,8 @@ end
 
 if isdir("test/data")
     @testset "Modification iteration" begin
+        @test autodetectmods(bamfile) == (mod_6mA, mod_5mC, mod_5hmC)
+        @test autodetectmods(cramfile) == (mod_6mA, mod_5mC, mod_5hmC)
         bamreader = open(HTSFileReader, bamfile)
         recorddata = StencillingData(AuxMapMod())
         for record in eachrecord(bamreader)
@@ -321,3 +323,4 @@ if isdir("test/data")
         end
     end
 end
+
