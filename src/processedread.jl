@@ -56,27 +56,6 @@ DirectRNAAlignBlocks(am::T) where {T} = DirectRNAAlignBlocks{T}(VectorBuffer{Int
 
 
 
-"""
-    init_kstring(capacity::Int=256)
-
-    Init a kstring buffer to read from htslib header. Review this - potentially integrate into HTSFileReader
-
-"""
-function init_kstring(capacity::Int=256)
-    buf = Vector{UInt8}(undef, capacity)
-    ks = kstring_t(0, capacity, pointer(buf))
-    return ks, buf
-end
-
-
-@inline function cstr_startswith(p::Ptr{Cchar}, s::AbstractString)
-    for (j, c) in enumerate(codeunits(s))
-        unsafe_load(Ptr{UInt8}(p), j) == c || return false
-    end
-    return true
-end
-
-
 function autodetecthtsdata(file::String)
     reader = open(HTSFileReader, file)
     dt = autodetecthtsdata(reader)
@@ -98,23 +77,27 @@ Currently relies on the bam header `RG` tag `DS` entry specifying:
 function autodetecthtsdata(reader::HTSFileReader)
     n = @ccall libhts.sam_hdr_count_lines(reader.hdr::sam_hdr_t_p, "RG"::Cstring)::Cint
 
-    ks, buf = init_kstring(256)
+    buf = Vector{UInt8}(undef, 4096)
+    ks  = Ref(kstring_t(0, length(buf), pointer(buf)))
 
     for i in 0:(n-1)
 
-        ret = @ccall libhts.sam_hdr_find_tag_pos(reader.hdr::sam_hdr_t_p, "RG"::Cstring,  i::Cint, "DS"::Cstring, Ref(ks)::Ref{kstring_t})::Cint
+        ret = @ccall libhts.sam_hdr_find_tag_pos(reader.hdr::sam_hdr_t_p, "RG"::Cstring,  i::Cint, "DS"::Cstring, ks::Ref{kstring_t})::Cint
         ret != 0 && continue   # -1: no DS tag, -2: error
-
 
         # DS value starts here, e.g.:
         # "basecall_model=dna_r10..."
         # "basecall_model=rna004..."
+        
+        ### C potentially reallocates the ks buffer, through error if it does, this needs to be fixed
+        ks[].m == length(buf) || @warn "kstring resized by htslib - memory has leaked"
 
-        p = ks.s
+        ds = unsafe_string(ks[].s, ks[].l)
+        
 
-        if cstr_startswith(p, "basecall_model=dna")
+        if occursin("basecall_model=dna", ds)
             return StencillingData
-        elseif cstr_startswith(p, "basecall_model=rna")
+        elseif occursin("basecall_model=rna", ds)
             return DirectRNA
         end
     end
