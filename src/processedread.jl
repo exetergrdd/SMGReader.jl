@@ -55,6 +55,73 @@ DirectRNAAlignBlocks(am::T) where {T} = DirectRNAAlignBlocks{T}(VectorBuffer{Int
 
 
 
+
+"""
+    init_kstring(capacity::Int=256)
+
+    Init a kstring buffer to read from htslib header. Review this - potentially integrate into HTSFileReader
+
+"""
+function init_kstring(capacity::Int=256)
+    buf = Vector{UInt8}(undef, capacity)
+    ks = kstring_t(0, capacity, pointer(buf))
+    return ks, buf
+end
+
+
+@inline function cstr_startswith(p::Ptr{Cchar}, s::AbstractString)
+    for (j, c) in enumerate(codeunits(s))
+        unsafe_load(Ptr{UInt8}(p), j) == c || return false
+    end
+    return true
+end
+
+
+function autodetecthtsdata(file::String)
+    reader = open(HTSFileReader, file)
+    dt = autodetecthtsdata(reader)
+    close(reader)
+    dt
+end
+
+"""
+    autodetecthtsdata(reader::HTSFileReader)
+
+Auto detect the HTSReadData type, with `StencillingData` or `DirectRNA`. `StencillingData` works with ONT WGS, with 5mC and 5hmC called. In the future this may be refactored
+renamed to discriminate. 
+
+Currently relies on the bam header `RG` tag `DS` entry specifying:
+  - `basecall_model=dna_r10...`
+  - `basecall_model=rna004...`
+
+"""
+function autodetecthtsdata(reader::HTSFileReader)
+    n = @ccall libhts.sam_hdr_count_lines(reader.hdr::sam_hdr_t_p, "RG"::Cstring)::Cint
+
+    ks, buf = init_kstring(256)
+
+    for i in 0:(n-1)
+
+        ret = @ccall libhts.sam_hdr_find_tag_pos(reader.hdr::sam_hdr_t_p, "RG"::Cstring,  i::Cint, "DS"::Cstring, Ref(ks)::Ref{kstring_t})::Cint
+        ret != 0 && continue   # -1: no DS tag, -2: error
+
+
+        # DS value starts here, e.g.:
+        # "basecall_model=dna_r10..."
+        # "basecall_model=rna004..."
+
+        p = ks.s
+
+        if cstr_startswith(p, "basecall_model=dna")
+            return StencillingData
+        elseif cstr_startswith(p, "basecall_model=rna")
+            return DirectRNA
+        end
+    end
+
+    error("HTS Data type could not be inferred from $(reader.file) with $n RG records.")
+end
+
 """
     processread!(record::BamRecord, recorddata::HTSReadData)
 
