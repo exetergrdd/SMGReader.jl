@@ -269,7 +269,7 @@ Construct map of auxillary data from `record` identifying fields specified by `a
             auxmap.ml = af
             ml_set = true
         end
-        !isnothing(mm) && !isnothing(ml) && !isnothing(hp) && break
+        mm_set && ml_set && hp_set && break
     end
     !hp_set && (auxmap.hp = nothing)
     
