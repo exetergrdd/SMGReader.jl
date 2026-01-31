@@ -158,7 +158,7 @@ Map read coordinates to genome coordates that uses `alignmap` in `recorddata`, `
     if ispositive(record)
         return recorddata.alignmap[pos] + onebased
     else
-        return recorddata.alignmap[record.core.l_qseq - (pos + len - 1) + 1] + onebased
+        return recorddata.alignmap[record.core.l_qseq - pos + 1] + onebased
     end
 end
 
