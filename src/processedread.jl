@@ -155,7 +155,7 @@ Return true if `record` has haplotype field
 Map read coordinates to genome coordates that uses `alignmap` in `recorddata`, `onebased=true` for 1-based coordinates
 """
 @inline function genomecoords(pos::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
-    if ispositive(r)
+    if ispositive(record)
         return recorddata.alignmap[pos] + onebased
     else
         return recorddata.alignmap[record.core.l_qseq - (pos + len - 1) + 1] + onebased
