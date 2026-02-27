@@ -206,6 +206,19 @@ AuxMapMod() = AuxMapMod(AuxField(), AuxField(), AuxField())
 
 
 """
+    AuxMapModPolyA()
+
+Construct an map of the aux data for HP, MM, ML fields. For standard use in chromatin stencilling (non-fire) and direct RNA.
+"""
+mutable struct AuxMapModPolyA <: AuxMap
+    hp::Union{AuxField, Nothing}
+    mm::AuxField
+    ml::AuxField
+    pt::Union{AuxField, Nothing}
+end
+AuxMapModPolyA() = AuxMapModPolyA(AuxField(), AuxField(), AuxField(), AuxField())
+
+"""
     AuxMapModFiberTools()
 
 Construct and map of the aux data for a Fiber tools BAM/CRAM mapping fields (that missing the aq fire field)
@@ -289,6 +302,37 @@ Construct map of auxillary data from `record` identifying fields specified by `a
     # auxmap.mm = mm
     # auxmap.ml = ml
     # success
+end
+
+
+@inline function auxmap!(record::BamRecord, auxmap::AuxMapModPolyA)
+    hp_set = false
+    mm_set = false
+    ml_set = false
+    pt_set = false
+
+    for af in AuxFieldIter(record)
+        if af.tag == (UInt8('H'), UInt8('P'))
+            auxmap.hp = af
+            hp_set = true
+        elseif af.tag == (UInt8('M'), UInt8('M'))
+            auxmap.mm = af
+            mm_set = true
+        elseif af.tag == (UInt8('M'), UInt8('L'))
+            auxmap.ml = af
+            ml_set = true
+        elseif af.tag == (UInt8('p'), UInt8('t'))
+            auxmap.pt = af
+            pt_set = true
+        end
+        mm_set && ml_set && hp_set && pt_set && break
+    end
+    !hp_set && (auxmap.hp = nothing)
+    !pt_set && (auxmap.pt = nothing)
+    
+    (!mm_set || !ml_set) && error("MM/ML not found")
+
+    return true
 end
 
 @inline function auxmap!(record, auxmap::AuxMapModFire)
