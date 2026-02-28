@@ -147,10 +147,27 @@ Return true if `record` has haplotype field
 @inline hashaplotype(record::BamRecord, recorddata::HTSReadData) = isnothing(recorddata.auxmap.hp)
 
 
+"""
+    polyatail(record::BamRecord, recorddata::DirectRNA{AuxMapModPolyA}, default=nothing)
+
+    Return the polyA tail length and default=nothing if not present.
+"""
+@inline polyAtaillength(record::BamRecord, recorddata::DirectRNA{AuxMapModPolyA}, default=nothing) = isnothing(recorddata.auxmap.pt) ? default : reinterpret(Int32, (
+                record.data[recorddata.auxmap.pt.start],
+                record.data[recorddata.auxmap.pt.start+1],
+                record.data[recorddata.auxmap.pt.start+2],
+                record.data[recorddata.auxmap.pt.start+3]
+            ))
+"""
+    haspolyatail(record::BamRecord, recorddata::DirectRNA{AuxMapModPolyA})
+
+    Check if read has a polyA tail.
+"""
+@inline haspolyAtail(record::BamRecord, recorddata::DirectRNA{AuxMapModPolyA}) = isnothing(recorddata.auxmap.pt)
 
 ### functions to map to genome
 """
-    genomecoords(pos::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
+        ords(pos::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
 
 Map read coordinates to genome coordates that uses `alignmap` in `recorddata`, `onebased=true` for 1-based coordinates
 """
