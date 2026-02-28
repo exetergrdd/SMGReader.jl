@@ -5,6 +5,11 @@ bamfile = "test/data/test.bam"
 cramfile = "test/data/test.cram"
 samfile = "test/data/test.sam"
 
+directrna_bam = "test/data/pdx1.bam"
+directrna_sam = "test/data/pdx1.sam"
+
+
+
 
 function iteratorlength(it)
     n = 0
@@ -16,6 +21,7 @@ end
 
 if isdir("test/data")
     @testset "SMGReader.jl" begin
+        ### stencilling data checks
         reader = open(HTSFileReader, bamfile)
         close(reader)
 
@@ -33,21 +39,33 @@ if isdir("test/data")
         nbam   = length(itbam)
         ncram  = length(itcram)
 
-        @assert iteratorlength(itbam) == iteratorlength(itcram) == nbam == ncram
+        @test iteratorlength(itbam) == iteratorlength(itcram) == nbam == ncram
         
         regions = [("chr1", 100253156:116796142), ("chr10", 69987747:72423136), ("chr2", 1:243199373)]
         for (chrom, loc) in regions
-            @assert iteratorlength(eachintersection(reader_bam, chrom, loc)) == iteratorlength(eachintersection(reader_cram, chrom, loc))
+            @test iteratorlength(eachintersection(reader_bam, chrom, loc)) == iteratorlength(eachintersection(reader_cram, chrom, loc))
         end
         
         @test iteratorlength(eachline(samfile)) == nrecords(reader_bam) == nrecords(reader_cram)
 
         close(reader_bam)
         close(reader_cram)
-
         
         @test typeof(autodetectaux(bamfile)) == AuxMapModFire
         @test typeof(autodetectaux(cramfile)) == AuxMapModFire
+
+        ### direct rna test
+        reader = open(HTSFileReader, directrna_bam)
+        close(reader)
+        @test indexfile(directrna_bam) == "test/data/pdx1.bam.bai"
+
+        reader_bam = open(HTSFileReader, directrna_bam)
+        itbam  = eachrecord(reader_bam)
+
+        @test iteratorlength(itbam) == length(collect(eachline(directrna_sam)))
+        close(reader_bam)
+        @test typeof(autodetectaux(directrna_bam)) == AuxMapModPolyA
+
 
     end
 end
@@ -61,7 +79,15 @@ function filesequal(fileA, fileB)
     ioA = open(fileA)
     ioB = open(fileB)
     for (lA, lB) in zip(eachline(ioA), eachline(ioB))
-        lA == lB || return false
+        if lA != lB 
+            println("Line mismatch:", "\n", lA, "\n", lB)
+            for (k, (fA, fB)) in enumerate(zip(eachsplit(lA, '\t'), eachsplit(lB, '\t')))
+                if fA != fB
+                    println("Field mismatch:", "\t", k, "\t", fA, "\t", fB)
+                end
+            end
+            return false
+        end
     end
     bothcomplete = eof(ioA) == eof(ioB)
     close(ioA)
@@ -79,6 +105,10 @@ if isdir("test/data")
         writesamfile(cramfile, samcramfile)
         @test filesequal(sambamfile, samfile)
         @test filesequal(samcramfile, samfile)
+
+        samdirectrna_bam = string(directrna_bam, ".sam")
+        writesamfile(directrna_bam, samdirectrna_bam)
+        @test filesequal(samdirectrna_bam, directrna_sam)
     end
 
 end
@@ -326,5 +356,40 @@ if isdir("test/data")
             @test first.(gm)       == getproperty.(ftmsps, :refstart)
             @test last.(gm)        == getproperty.(ftmsps, :refstop)
         end
+    end
+end
+
+
+if isdir("test/data") 
+    @testset "polyA stats" begin
+
+
+        ref_polya_lengths = Dict{String, Int}()
+        for line in  eachline("test/data/pdx1.sam")
+            readname = ""
+            polyAfound = false
+            for (k, field) in enumerate(eachsplit(line, '\t'))
+                (k == 1) && (readname = field)
+
+                m = match(r"pt:i:(\d+)", field)
+                if !isnothing(m)
+                    ref_polya_lengths[readname] = parse(Int, m[1])
+                    polyAfound = true
+                    break
+                end
+            end
+        end
+
+        reader = open(HTSFileReader, directrna_bam)
+        recorddata = DirectRNA(AuxMapModPolyA())
+
+        for record in eachrecord(reader)
+            validflag(record) || continue
+            processread!(record, recorddata)
+        
+            @test polyAtaillength(record, recorddata) == ref_polya_lengths[qname(record)]
+
+        end
+        close(reader)
     end
 end
