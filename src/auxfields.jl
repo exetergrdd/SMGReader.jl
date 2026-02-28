@@ -143,6 +143,8 @@ function autodetectaux(file::String; totalreads = 10)
     hasas = false
     hasal = false
     hasaq = false
+    haspt = false
+
     t = 0
     for record in eachrecord(reader)
         for af in AuxFieldIter(record)
@@ -153,13 +155,17 @@ function autodetectaux(file::String; totalreads = 10)
             (af.tag == (UInt8('a'), UInt8('s'))) && (hasas = true)
             (af.tag == (UInt8('a'), UInt8('l'))) && (hasal = true)
             (af.tag == (UInt8('a'), UInt8('q'))) && (hasaq = true)
+            (af.tag == (UInt8('p'), UInt8('t'))) && (haspt = true)
         end
         t += 1
         (t == totalreads) && break
     end
     
     if hasmm && hasml
-        if hasns || hasnl || hasas || hasal || hasaq
+        if haspt
+            ### has a polyA tail length signal
+            auxmap = AuxMapModPolyA()
+        elseif hasns || hasnl || hasas || hasal || hasaq
             if hasns && hasnl && hasas && hasal && hasaq
                 auxmap = AuxMapModFire()
             elseif hasns && hasnl && hasas && hasal
