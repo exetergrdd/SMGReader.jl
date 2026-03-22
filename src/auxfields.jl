@@ -275,6 +275,46 @@ end
 AuxMapModFire() = AuxMapModFire(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
 
 
+
+
+
+"""
+    AuxMapModFireQC()
+
+Construct and map of the aux data for a FIRE BAM/CRAM mapping fields
+
+  - NM: edit distance
+  - AS: alignment score
+  - de: divergance (minimap2)
+  - qs: ONT q score
+  - hp: Haplotype
+  - mm: Run length encoded mod bases
+  - ml: Mod Probability
+  - ns: Nucleosome positions
+  - nl: nucleosome length
+  - as: msp positions
+  - al: msp lengths
+  - aq: msp quality score
+"""
+mutable struct AuxMapModFireQC <: AuxMap
+    
+    NM::AuxField
+    AS::AuxField
+    de::AuxField
+    qs::Union{AuxField, Nothing} ### allow qs to be nothing for pacbio for example
+    hp::Union{AuxField, Nothing}
+    mm::AuxField
+    ml::AuxField
+    ns::AuxField
+    nl::AuxField
+    as::AuxField
+    al::AuxField
+    aq::AuxField
+end
+AuxMapModFireQC() = AuxMapModFireQC(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
+
+
+
 """
     auxmap!(record::BamRecord, auxmap<:Auxmap)
 
@@ -415,3 +455,176 @@ end
     # auxmap
     # success
 end
+
+
+
+@inline function auxmap!(record, auxmap::AuxMapModFireQC)
+    
+    
+    NM_set = false
+    AS_set = false
+    de_set = false
+    qs_set = false
+
+    hp_set = false
+    mm_set = false
+    ml_set = false
+    ns_set = false
+    nl_set = false
+    as_set = false
+    al_set = false
+    aq_set = false
+    
+    totalfields = 12
+    totalrecords = 0
+    
+    for af in AuxFieldIter(record)
+        if af.tag == (UInt8('N'), UInt8('M'))
+            auxmap.NM = af
+            NM_set = true
+            totalrecords += 1
+
+        elseif af.tag == (UInt8('A'), UInt8('S'))
+            auxmap.AS = af
+            AS_set = true
+            totalrecords += 1
+    
+        elseif af.tag == (UInt8('d'), UInt8('e'))
+            auxmap.de = af
+            de_set = true
+            totalrecords += 1
+        
+        elseif af.tag == (UInt8('q'), UInt8('s'))
+            auxmap.qs = af
+            qs_set = true
+            totalrecords += 1
+
+        elseif af.tag == (UInt8('H'), UInt8('P'))
+            auxmap.hp = af
+            hp_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('M'), UInt8('M'))
+            auxmap.mm = af
+            mm_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('M'), UInt8('L'))
+            auxmap.ml = af
+            ml_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('n'), UInt8('s'))
+            auxmap.ns = af
+            ns_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('n'), UInt8('l'))
+            auxmap.nl = af
+            nl_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('s'))
+            auxmap.as = af
+            as_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('l'))
+            auxmap.al = af
+            al_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('q'))
+            auxmap.aq = af
+            aq_set = true
+            totalrecords += 1
+        end
+        
+        (totalrecords == totalfields) && break
+    end
+
+
+    !hp_set && (auxmap.hp = nothing)
+    !qs_set && (auxmap.qs = nothing)
+    (!mm_set || !ml_set) && error("MM/ML not found")
+    
+    if NM_set & AS_set & de_set & ns_set && nl_set && as_set && al_set && aq_set
+        return true
+    else
+        return false
+    end
+    
+end
+
+
+### now add exports and test parsing of this!
+
+
+### auxfield accessor functions
+
+@inline getauxint(record, af) = reinterpret(Int32, (
+                record.data[af.start],
+                record.data[af.start+1],
+                record.data[af.start+2],
+                record.data[af.start+3]
+            ))
+
+@inline getauxuint(record, af) = reinterpret(UInt32, (
+                record.data[af.start],
+                record.data[af.start+1],
+                record.data[af.start+2],
+                record.data[af.start+3]
+            ))
+
+
+
+
+@inline function getauxint_flexible(record, af)
+    if af.typechar == UInt8('c')
+        return Int32(reinterpret(Int8, record.data[af.start]))
+    elseif af.typechar == UInt8('C')
+        return Int32(record.data[af.start])
+    elseif af.typechar == UInt8('s')
+        return Int32(reinterpret(Int16, (
+            record.data[af.start],
+            record.data[af.start+1])))
+    elseif af.typechar == UInt8('S')
+        return Int32(reinterpret(UInt16, (
+            record.data[af.start],
+            record.data[af.start+1])))
+    elseif af.typechar == UInt8('i')
+        return reinterpret(Int32, (
+            record.data[af.start],
+            record.data[af.start+1],
+            record.data[af.start+2],
+            record.data[af.start+3]))
+    elseif af.typechar == UInt8('I')
+        return Int32(reinterpret(UInt32, (
+            record.data[af.start],
+            record.data[af.start+1],
+            record.data[af.start+2],
+            record.data[af.start+3])))
+    else
+        error("Unsupported type")
+    end
+end
+
+@inline function getauxuint_flexible(record, af::AuxField)
+    
+    if af.typechar == UInt8('C')
+        return UInt32(record.data[af.start])
+    elseif af.typechar == UInt8('S')
+        return UInt32(reinterpret(UInt16, (
+                record.data[af.start],
+                record.data[af.start+1])))
+    elseif af.typechar == UInt8('I')
+        return reinterpret(UInt32, (
+                    record.data[af.start],
+                    record.data[af.start+1],
+                    record.data[af.start+2],
+                    record.data[af.start+3]
+                ))
+    else
+        error("Auxfield typechar: $(af.typechar) is not UInt")
+    end
+end
+
+@inline getauxfloat(record, af) = reinterpret(Float32, (
+                record.data[af.start],
+                record.data[af.start+1],
+                record.data[af.start+2],
+                record.data[af.start+3]
+            ))
