@@ -316,50 +316,50 @@ Special version of `genomecoords` for fiber-tools and fire elements that are enc
 ### accessor functions for fire
 
 """
-    firenucpos(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+    firenucpos(r::BamRecord, recorddata::StencillingData)
 
 Return fiber tools annotated nucleosome positions on read coordinates 0-based coordinates.
 """
-@inline  firenucpos(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) =  firenucpos(r, recorddata.auxmap)
+@inline  firenucpos(r::BamRecord, recorddata::StencillingData)  =  firenucpos(r, recorddata.auxmap)
 
 """
-    firenuclen(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+    firenuclen(r::BamRecord, recorddata::StencillingData)
 
 Return fiber tools annotated nucleosome lengths on read coordinates.
 """
-@inline  firenuclen(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) =  firenuclen(r, recorddata.auxmap)
+@inline  firenuclen(r::BamRecord, recorddata::StencillingData) =  firenuclen(r, recorddata.auxmap)
 
 """
-    firemsppos(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+    firemsppos(r::BamRecord, recorddata::StencillingData)
 
 Return fiber tools annotated MSP positions on read coordinates. 0-based coordinates.
 """
-@inline  firemsppos(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) =  firemsppos(r, recorddata.auxmap)
+@inline  firemsppos(r::BamRecord, recorddata::StencillingData) =  firemsppos(r, recorddata.auxmap)
 
 """
-    firemsplen(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+    firemsplen(r::BamRecord, recorddata::StencillingData)
 
 Return fiber tools annotated MSP lengths on read coordinates.
 """
-@inline  firemsplen(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) =  firemsplen(r, recorddata.auxmap)
+@inline  firemsplen(r::BamRecord, recorddata::StencillingData) =  firemsplen(r, recorddata.auxmap)
 
 """
-    firemspqual(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+    firemspqual(r::BamRecord, recorddata::StencillingData)
 
 Return fiber tools annotated MSP quality scores on read coordinates.
 """
-@inline firemspqual(r::BamRecord, recorddata::StencillingData{AuxMapModFire}) = firemspqual(r, recorddata.auxmap)
+@inline firemspqual(r::BamRecord, recorddata::StencillingData) = firemspqual(r, recorddata.auxmap)
 
 
-@inline  firenucpos(r::BamRecord, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.ns.start:am.ns.stop]))
-@inline  firenuclen(r::BamRecord, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.nl.start:am.nl.stop]))
-@inline  firemsppos(r::BamRecord, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.as.start:am.as.stop]))
-@inline  firemsplen(r::BamRecord, am::AuxMapModFire) = reinterpret(Int32, @view(r.data[am.al.start:am.al.stop]))
-@inline firemspqual(r::BamRecord, am::AuxMapModFire) = @view r.data[am.aq.start:am.aq.stop]
+@inline  firenucpos(r::BamRecord, am::AuxMap) = reinterpret(Int32, @view(r.data[am.ns.start:am.ns.stop]))
+@inline  firenuclen(r::BamRecord, am::AuxMap) = reinterpret(Int32, @view(r.data[am.nl.start:am.nl.stop]))
+@inline  firemsppos(r::BamRecord, am::AuxMap) = reinterpret(Int32, @view(r.data[am.as.start:am.as.stop]))
+@inline  firemsplen(r::BamRecord, am::AuxMap) = reinterpret(Int32, @view(r.data[am.al.start:am.al.stop]))
+@inline firemspqual(r::BamRecord, am::AuxMap) = @view r.data[am.aq.start:am.aq.stop]
 
 
 """
-    firemsps(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+    firemsps(r::BamRecord, recorddata::StencillingData)
 
 Construct iterator of fire msp positions, lengths, and quality scores in read coordinates
 Usage:
@@ -368,10 +368,10 @@ Usage:
         ### do something 
     end
 """
-@inline firemsps(record::BamRecord, recorddata::StencillingData{AuxMapModFire}) = zip(firemsppos(record, recorddata.auxmap), firemsplen(record, recorddata.auxmap), firemspqual(record, recorddata.auxmap))
+@inline firemsps(record::BamRecord, recorddata::StencillingData) = zip(firemsppos(record, recorddata.auxmap), firemsplen(record, recorddata.auxmap), firemspqual(record, recorddata.auxmap))
 
 """
-    firenucs(r::BamRecord, recorddata::StencillingData{AuxMapModFire})
+    firenucs(r::BamRecord, recorddata::StencillingData)
 
 Construct iterator of fire nucleosome positions, lengths in read coordinates
 Usage:
@@ -380,7 +380,7 @@ Usage:
         ### do something 
     end
 """
-@inline firenucs(record::BamRecord, recorddata::StencillingData{AuxMapModFire}) = zip(firenucpos(record, recorddata.auxmap), firenuclen(record, recorddata.auxmap))
+@inline firenucs(record::BamRecord, recorddata::StencillingData) = zip(firenucpos(record, recorddata.auxmap), firenuclen(record, recorddata.auxmap))
 
 
 
@@ -389,7 +389,7 @@ Usage:
 @inline firefilt(x, onebased=true) = (x[1] > onebased) && (x[2] > onebased)
 
 """
-    firegenome(record::BamRecord, recorddata::StencillingData{AuxMapModFire}
+    firegenome(record::BamRecord, recorddata::StencillingData)
 
 Construct a function for mapping fire nucleosomes and MSP coordiates from read coordinates to genome filtering out entries that do not map
 
@@ -400,4 +400,4 @@ Usage:
         ### do something with genome coordinates
     end
 """
-@inline firegenome(record::BamRecord, recorddata::StencillingData{AuxMapModFire}) = it -> Iterators.filter(firefilt, Iterators.map(firegenomeelement(record, recorddata), it))
+@inline firegenome(record::BamRecord, recorddata::StencillingData) = it -> Iterators.filter(firefilt, Iterators.map(firegenomeelement(record, recorddata), it))
