@@ -133,6 +133,14 @@ Get the right position of alignment on genome. 0-based exclusive coordinates
 
 
 """
+    referencespan(record::BamRecord, recorddata::HTSReadData) 
+
+Get the reference span on the genome of the read.
+"""
+@inline referencespan(record::BamRecord, recorddata::HTSReadData) = rightposition(recorddata) - leftposition(record)
+
+
+"""
     haplotype(record::BamRecord, recorddata::HTSReadData)
 
 Return haplotype of record and nothing if haplotype missing
@@ -165,9 +173,46 @@ Return true if `record` has haplotype field
 """
 @inline haspolyAtail(record::BamRecord, recorddata::DirectRNA{AuxMapModPolyA}) = isnothing(recorddata.auxmap.pt)
 
+
+
+#### functions to access alignment and basecall (nanopore) qc fields 
+
+"""
+    editdistance(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC})
+
+    Return the edit distance
+"""
+@inline editdistance(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}) = getauxuint_flexible(record, recorddata.auxmap.NM)
+
+"""
+    alignmentscore(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC})
+
+    Return the alignment score
+"""
+@inline alignmentscore(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}) = getauxint(record, recorddata.auxmap.AS)
+
+
+"""
+    gapcompresseddivergence(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC})
+
+    Return the minimap2 gapcompressed divergence
+"""
+@inline gapcompresseddivergence(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}) = getauxfloat(record, recorddata.auxmap.de)
+
+
+"""
+    basecallqscore(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}, default=nothing)
+
+    Return the dorado basecall score
+"""
+@inline basecallqscore(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}, default=nothing) = isnothing(recorddata.auxmap.qs) ? default : getauxfloat(record, recorddata.auxmap.qs)
+
+
+
+
 ### functions to map to genome
 """
-        ords(pos::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
+    genomecoords(pos::Int, record::BamRecord, recorddata::HTSReadData; onebased=true)
 
 Map read coordinates to genome coordates that uses `alignmap` in `recorddata`, `onebased=true` for 1-based coordinates
 """
