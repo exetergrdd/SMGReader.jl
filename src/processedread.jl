@@ -182,14 +182,14 @@ Return true if `record` has haplotype field
 
     Return the edit distance
 """
-@inline editdistance(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}) = getauxuint_flexible(record, recorddata.auxmap.NM)
+@inline editdistance(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}) = getauxint_flexible(record, recorddata.auxmap.NM)
 
 """
     alignmentscore(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC})
 
     Return the alignment score
 """
-@inline alignmentscore(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}) = getauxint(record, recorddata.auxmap.AS)
+@inline alignmentscore(record::BamRecord, recorddata::StencillingData{AuxMapModFireQC}) = getauxint_flexible(record, recorddata.auxmap.AS)
 
 
 """
