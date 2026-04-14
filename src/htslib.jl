@@ -135,11 +135,23 @@ function openhts(path; idx_path=indexfile(path), bamthreads=Threads.nthreads())
 
     hdr = @ccall libhts.sam_hdr_read(fp::htsFile_p)::sam_hdr_t_p
     hdr == C_NULL && error("Failed to read header")
-    if isfile(idx_path)
-        idx = @ccall libhts.sam_index_load2(fp::htsFile_p, path::Cstring, idx_path::Cstring)::hts_idx_t_p ### works
-        idx == C_NULL && error("Failed to load index for $idx_path")
+
+    is_remote = startswith(path, "http://") || startswith(path, "https://") || startswith(path, "ftp://") || startswith(path, "s3://")
+    # cache_dir=joinpath(homedir(), ".cache", "htslib_indices")
+    if is_remote
+        # Let htslib natively discover and download/stream the remote index
+        idx = @ccall libhts.sam_index_load(fp::htsFile_p, path::Cstring)::hts_idx_t_p
+        idx == C_NULL && error("Failed to load remote index for $path")
+        
     else
-        idx = C_NULL
+        # Local file logic probably can just use sam_index_load if idx_path === nothing
+        actual_idx_path = isnothing(idx_path) ? indexfile(path) : idx_path
+        if isfile(actual_idx_path)
+            idx = @ccall libhts.sam_index_load2(fp::htsFile_p, path::Cstring, actual_idx_path::Cstring)::hts_idx_t_p 
+            idx == C_NULL && error("Failed to load index for $actual_idx_path")
+        else
+            idx = C_NULL
+        end
     end
 
     record = @ccall libhts.bam_init1()::bam1_t_p

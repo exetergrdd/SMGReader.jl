@@ -393,3 +393,131 @@ if isdir("test/data")
         close(reader)
     end
 end
+
+
+function parse_dorado_line(line)
+
+    # @show line
+    fields = split(line, "\t")
+
+    
+
+    read_id = fields[2]
+    sequence_length_template = parse(Int, fields[10])
+    mean_qscore_template = parse(Float64, fields[11])
+    alignment_genome = fields[13]
+    alignment_genome_start = parse(Int, fields[14])
+    alignment_genome_end = parse(Int, fields[15])
+    alignment_strand_start = parse(Int, fields[16])
+    alignment_strand_end = parse(Int, fields[17])
+    alignment_direction = fields[18]
+    alignment_length = parse(Int, fields[19])
+    alignment_num_aligned = parse(Int, fields[20])
+    alignment_num_correct = parse(Int, fields[21])
+    alignment_num_insertions = parse(Int, fields[22])
+    alignment_num_deletions = parse(Int, fields[23])
+    alignment_num_substitutions = parse(Int, fields[24])
+    alignment_mapq = parse(Int, fields[25])
+    alignment_strand_coverage = parse(Float64, fields[26])
+    alignment_identity = parse(Float64, fields[27])
+    alignment_accuracy = parse(Float64, fields[28])
+
+   
+
+    (; read_id,
+    sequence_length_template,
+    mean_qscore_template,
+    alignment_genome,
+    alignment_genome_start,
+    alignment_genome_end,
+    alignment_strand_start,
+    alignment_strand_end,
+    alignment_direction,
+    alignment_length,
+    alignment_num_aligned,
+    alignment_num_correct,
+    alignment_num_insertions,
+    alignment_num_deletions,
+    alignment_num_substitutions,
+    alignment_mapq,
+    alignment_strand_coverage,
+    alignment_identity,
+    alignment_accuracy)
+
+
+end
+
+parse_dorado_summary(file="test/data/test.bam.doradosummary.tsv") = map(((k, l),) -> parse_dorado_line(l), Iterators.filter(((k, line),) -> k > 1, enumerate(eachline(file))))
+
+
+if isdir("test/data")
+    @testset "Alignment and QC fields " begin
+
+        dorado_summary = parse_dorado_summary()
+
+        bamreader = open(HTSFileReader, bamfile)
+        recorddata = StencillingData(AuxMapModFireQC())
+        t = 0
+        for (record, summary) in zip(eachrecord(bamreader), dorado_summary)
+            @test processread!(record, recorddata)
+
+
+            ### invariants on sequence alignment
+            # ed = editdistance(record, recorddata)
+            aligned_bases = alignedbases(record, recorddata)
+            reference_span = referencespan(record, recorddata)
+            numins = numinsertions(record)
+            alignment_length = alignmentlength(record, recorddata)
+            alignment_num_correct = alignmentnumcorrect(record, recorddata)
+
+            alignment_accuracy = alignmentaccuracy(record, recorddata)
+            alignment_identity = alignmentidentity(record, recorddata) 
+        
+
+
+            @test qname(record) == summary.read_id
+            @test refname(bamreader, record) == summary.alignment_genome
+            @test querylength(record) == summary.sequence_length_template
+            @test leftposition(record) == summary.alignment_genome_start
+            @test rightposition(recorddata) == summary.alignment_genome_end
+            
+ 
+            @test summary.alignment_strand_start == (findfirst(!iszero, recorddata.alignmap) - 1)
+            @test summary.alignment_strand_end == findlast(!iszero, recorddata.alignmap)
+            @test ifelse(ispositive(record), "+", "-") == summary.alignment_direction
+
+         
+
+            @test summary.alignment_length == alignment_length
+            @test summary.alignment_num_aligned == aligned_bases
+            @test summary.alignment_num_insertions == numins
+            @test summary.alignment_num_correct == alignment_num_correct
+
+
+            @test abs(summary.alignment_accuracy - alignment_accuracy) < 1e-6
+            @test abs(summary.alignment_identity - alignment_identity) < 1e-6
+            
+
+            ######## AS and de fields
+            as = alignmentscore(record, recorddata)
+            de = gapcompresseddivergence(record, recorddata)               
+
+            @test as isa Int32
+            @test de isa Float32
+            @test 0 <= de <= 1
+
+
+            ### nanopore qscore qs fields
+            qs = basecallqscore(record, recorddata)
+            if !isnothing(qs) ### pac bio won't have the same qs field
+                @test qs isa Float32
+                @test 0 <= qs <= 60 ### strictly dorado is qscore max is 50
+            end
+
+            t += 1
+        end
+        
+        close(bamreader)
+
+    end
+end
