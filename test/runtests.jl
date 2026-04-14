@@ -8,8 +8,9 @@ samfile = "test/data/test.sam"
 directrna_bam = "test/data/pdx1.bam"
 directrna_sam = "test/data/pdx1.sam"
 
+hg38_file = "/Users/ndlo201/projects/smf/fire/hap/0307_H1_60min/fire/0307_H1_60min.fire.cram"
 
-
+# autodetecthtsdata(hg38_file)
 
 function iteratorlength(it)
     n = 0
@@ -18,6 +19,7 @@ function iteratorlength(it)
     end
     n
 end
+
 
 if isdir("test/data")
     @testset "SMGReader.jl" begin
@@ -521,3 +523,17 @@ if isdir("test/data")
 
     end
 end
+
+
+@testset "Remote test" begin
+    htsfiles = ["http://penrose.ex.ac.uk/data/ont/data/P2/110326_stage4_Hia5/110326_stage4_Hia5/20260311_1456_P2S-02817-A_PBK54013_70d428b2/dorado_v13/fire_hg38/results/110326_stage4_Hia5/fire/110326_stage4_Hia5.fire.cram",
+               "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG00096/alignment/HG00096.mapped.ILLUMINA.bwa.GBR.low_coverage.20120522.bam"]
+
+    for h in htsfiles
+        reader = open(HTSFileReader, h)
+        @test !isnothing(reader)
+        @test reader.idx != C_NULL
+        close(reader)
+    end
+end
+
