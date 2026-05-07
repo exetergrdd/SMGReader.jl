@@ -22,7 +22,7 @@ Fields:
 - `stop::Int`: Stop index (1-based) of the field value in the record's byte array.
 """
 struct AuxField
-    tag::NTuple{2, UInt8}
+    tag::NTuple{2,UInt8}
     typechar::UInt8
     elemtypechar::UInt8
     start::Int
@@ -76,11 +76,11 @@ end
         elseif typechar == UInt8('B')
             elemtypechar = bytes[i]
             n = reinterpret(UInt32, (
-                    bytes[i+1],
-                    bytes[i+2],
-                    bytes[i+3],
-                    bytes[i+4]
-                ))
+                bytes[i+1],
+                bytes[i+2],
+                bytes[i+3],
+                bytes[i+4]
+            ))
             i += 4  # skip elemtypechar and 3-byte length
             start = i + 1
 
@@ -110,7 +110,7 @@ Function to retrieve location of MM and ML auxillary fields as `AuxFields`
 function getmmml(record::BamRecord)
     mm_aux = nothing
     ml_aux = nothing
-    
+
     for af in AuxFieldIter(record)
         if af.tag == (UInt8('M'), UInt8('M'))
             mm_aux = af
@@ -119,7 +119,7 @@ function getmmml(record::BamRecord)
         end
         !isnothing(mm_aux) && !isnothing(ml_aux) && break
     end
-    
+
     (isnothing(mm_aux) || isnothing(ml_aux)) && error("MM/ML not found")
     mm_aux, ml_aux
 end
@@ -132,7 +132,7 @@ end
 
 Autodetect auxillary map of file. Only checks first record and assumes all records have the same aux fields. 
 """
-function autodetectaux(file::String; totalreads = 10)
+function autodetectaux(file::String; totalreads=10)
 
     reader = open(HTSFileReader, file)
 
@@ -143,7 +143,9 @@ function autodetectaux(file::String; totalreads = 10)
     hasas = false
     hasal = false
     hasaq = false
+    hasAQ = false
     haspt = false
+    hasma = false
 
     t = 0
     for record in eachrecord(reader)
@@ -155,14 +157,20 @@ function autodetectaux(file::String; totalreads = 10)
             (af.tag == (UInt8('a'), UInt8('s'))) && (hasas = true)
             (af.tag == (UInt8('a'), UInt8('l'))) && (hasal = true)
             (af.tag == (UInt8('a'), UInt8('q'))) && (hasaq = true)
+            (af.tag == (UInt8('A'), UInt8('Q'))) && (hasAQ = true)
             (af.tag == (UInt8('p'), UInt8('t'))) && (haspt = true)
+            (af.tag == (UInt8('M'), UInt8('A'))) && (hasma = true)
         end
         t += 1
         (t == totalreads) && break
     end
-    
+
     if hasmm && hasml
-        if haspt
+        if hasma && hasns && hasnl && hasas && hasal && hasaq
+            auxmap = AuxMapModFireFiberHMM()
+        elseif hasma
+            auxmap = AuxMapFiberHMM()
+        elseif haspt
             ### has a polyA tail length signal
             auxmap = AuxMapModPolyA()
         elseif hasns || hasnl || hasas || hasal || hasaq
@@ -178,7 +186,7 @@ function autodetectaux(file::String; totalreads = 10)
                 if !hasns
                     @warn "Incomplete FIRE/fibertools fields ignoring and tracking MM/ML only"
                 end
-                
+
                 auxmap = AuxMapMod()
             end
         else
@@ -204,7 +212,7 @@ abstract type AuxMap end
 Construct an map of the aux data for HP, MM, ML fields. For standard use in chromatin stencilling (non-fire) and direct RNA.
 """
 mutable struct AuxMapMod <: AuxMap
-    hp::Union{AuxField, Nothing}
+    hp::Union{AuxField,Nothing}
     mm::AuxField
     ml::AuxField
 end
@@ -217,10 +225,10 @@ AuxMapMod() = AuxMapMod(AuxField(), AuxField(), AuxField())
 Construct an map of the aux data for HP, MM, ML fields. For standard use in chromatin stencilling (non-fire) and direct RNA.
 """
 mutable struct AuxMapModPolyA <: AuxMap
-    hp::Union{AuxField, Nothing}
+    hp::Union{AuxField,Nothing}
     mm::AuxField
     ml::AuxField
-    pt::Union{AuxField, Nothing}
+    pt::Union{AuxField,Nothing}
 end
 AuxMapModPolyA() = AuxMapModPolyA(AuxField(), AuxField(), AuxField(), AuxField())
 
@@ -238,7 +246,7 @@ Construct and map of the aux data for a Fiber tools BAM/CRAM mapping fields (tha
   - al: msp lengths
 """
 mutable struct AuxMapModFiberTools <: AuxMap
-    hp::Union{AuxField, Nothing}
+    hp::Union{AuxField,Nothing}
     mm::AuxField
     ml::AuxField
     ns::AuxField
@@ -263,7 +271,7 @@ Construct and map of the aux data for a FIRE BAM/CRAM mapping fields
   - aq: msp quality score
 """
 mutable struct AuxMapModFire <: AuxMap
-    hp::Union{AuxField, Nothing}
+    hp::Union{AuxField,Nothing}
     mm::AuxField
     ml::AuxField
     ns::AuxField
@@ -297,12 +305,12 @@ Construct and map of the aux data for a FIRE BAM/CRAM mapping fields
   - aq: msp quality score
 """
 mutable struct AuxMapModFireQC <: AuxMap
-    
+
     NM::AuxField
     AS::AuxField
     de::AuxField
-    qs::Union{AuxField, Nothing} ### allow qs to be nothing for pacbio for example
-    hp::Union{AuxField, Nothing}
+    qs::Union{AuxField,Nothing} ### allow qs to be nothing for pacbio for example
+    hp::Union{AuxField,Nothing}
     mm::AuxField
     ml::AuxField
     ns::AuxField
@@ -312,6 +320,46 @@ mutable struct AuxMapModFireQC <: AuxMap
     aq::AuxField
 end
 AuxMapModFireQC() = AuxMapModFireQC(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
+
+
+"""
+    AuxMapFiberHMM()
+
+Construct and map of the aux data for FiberHMM BAM/CRAM mapping fields
+
+  - hp: Haplotype
+  - mm: Run length encoded mod bases
+  - ml: Mod Probability
+  - ma: Molecular annotation spec tag
+  - AQ: Annotation quality score array
+"""
+mutable struct AuxMapFiberHMM <: AuxMap
+    hp::Union{AuxField,Nothing}
+    mm::AuxField
+    ml::AuxField
+    ma::AuxField
+    AQ::Union{AuxField,Nothing}
+end
+AuxMapFiberHMM() = AuxMapFiberHMM(AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
+
+"""
+    AuxMapModFireFiberHMM()
+
+Construct an map of the aux data for both Fire and FiberHMM fields
+"""
+mutable struct AuxMapModFireFiberHMM <: AuxMap
+    hp::Union{AuxField,Nothing}
+    mm::AuxField
+    ml::AuxField
+    ns::AuxField
+    nl::AuxField
+    as::AuxField
+    al::AuxField
+    aq::AuxField
+    ma::AuxField
+    AQ::Union{AuxField,Nothing}
+end
+AuxMapModFireFiberHMM() = AuxMapModFireFiberHMM(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
 
 
 
@@ -324,7 +372,7 @@ Construct map of auxillary data from `record` identifying fields specified by `a
     hp_set = false
     mm_set = false
     ml_set = false
-    
+
     for af in AuxFieldIter(record)
         if af.tag == (UInt8('H'), UInt8('P'))
             auxmap.hp = af
@@ -339,7 +387,7 @@ Construct map of auxillary data from `record` identifying fields specified by `a
         mm_set && ml_set && hp_set && break
     end
     !hp_set && (auxmap.hp = nothing)
-    
+
     (!mm_set || !ml_set) && error("MM/ML not found")
 
     return true
@@ -375,7 +423,7 @@ end
     end
     !hp_set && (auxmap.hp = nothing)
     !pt_set && (auxmap.pt = nothing)
-    
+
     (!mm_set || !ml_set) && error("MM/ML not found")
 
     return true
@@ -390,10 +438,10 @@ end
     as_set = false
     al_set = false
     aq_set = false
-    
+
     totalfields = 8
     totalrecords = 0
-    
+
     for af in AuxFieldIter(record)
         if af.tag == (UInt8('H'), UInt8('P'))
             auxmap.hp = af
@@ -428,22 +476,22 @@ end
             aq_set = true
             totalrecords += 1
         end
-        
+
         (totalrecords == totalfields) && break
     end
 
 
     !hp_set && (auxmap.hp = nothing)
     (!mm_set || !ml_set) && error("MM/ML not found")
-    
+
     if ns_set && nl_set && as_set && al_set && aq_set
         return true
     else
         return false
     end
     # (isnothing(ns) || isnothing(nl) || isnothing(as) || isnothing(al) || isnothing(aq)) && (success = false)  #error("Fire Aux fields  not found")
-    
-    
+
+
     # auxmap.hp = hp
     # auxmap.mm = mm
     # auxmap.ml = ml
@@ -459,8 +507,8 @@ end
 
 
 @inline function auxmap!(record, auxmap::AuxMapModFireQC)
-    
-    
+
+
     NM_set = false
     AS_set = false
     de_set = false
@@ -474,10 +522,10 @@ end
     as_set = false
     al_set = false
     aq_set = false
-    
+
     totalfields = 12
     totalrecords = 0
-    
+
     for af in AuxFieldIter(record)
         if af.tag == (UInt8('N'), UInt8('M'))
             auxmap.NM = af
@@ -488,12 +536,12 @@ end
             auxmap.AS = af
             AS_set = true
             totalrecords += 1
-    
+
         elseif af.tag == (UInt8('d'), UInt8('e'))
             auxmap.de = af
             de_set = true
             totalrecords += 1
-        
+
         elseif af.tag == (UInt8('q'), UInt8('s'))
             auxmap.qs = af
             qs_set = true
@@ -532,7 +580,7 @@ end
             aq_set = true
             totalrecords += 1
         end
-        
+
         (totalrecords == totalfields) && break
     end
 
@@ -540,14 +588,124 @@ end
     !hp_set && (auxmap.hp = nothing)
     !qs_set && (auxmap.qs = nothing)
     (!mm_set || !ml_set) && error("MM/ML not found")
-    
+
     if NM_set & AS_set & de_set & ns_set && nl_set && as_set && al_set && aq_set
         return true
     else
         return false
     end
-    
+
 end
+
+
+@inline function auxmap!(record, auxmap::AuxMapFiberHMM)
+    hp_set = false
+    mm_set = false
+    ml_set = false
+    ma_set = false
+    AQ_set = false
+
+    for af in AuxFieldIter(record)
+        if af.tag == (UInt8('H'), UInt8('P'))
+            auxmap.hp = af
+            hp_set = true
+        elseif af.tag == (UInt8('M'), UInt8('M'))
+            auxmap.mm = af
+            mm_set = true
+        elseif af.tag == (UInt8('M'), UInt8('L'))
+            auxmap.ml = af
+            ml_set = true
+        elseif af.tag == (UInt8('M'), UInt8('A'))
+            auxmap.ma = af
+            ma_set = true
+        elseif af.tag == (UInt8('A'), UInt8('Q'))
+            auxmap.AQ = af
+            AQ_set = true
+        end
+        mm_set && ml_set && ma_set && hp_set && AQ_set && break
+    end
+
+    !hp_set && (auxmap.hp = nothing)
+    !AQ_set && (auxmap.AQ = nothing)
+
+    (!mm_set || !ml_set) && error("MM/ML not found")
+    !ma_set && return false
+
+    return true
+end
+
+@inline function auxmap!(record, auxmap::AuxMapModFireFiberHMM)
+    hp_set = false
+    mm_set = false
+    ml_set = false
+    ns_set = false
+    nl_set = false
+    as_set = false
+    al_set = false
+    aq_set = false
+    ma_set = false
+    AQ_set = false
+
+    totalfields = 10
+    totalrecords = 0
+
+    for af in AuxFieldIter(record)
+        if af.tag == (UInt8('H'), UInt8('P'))
+            auxmap.hp = af
+            hp_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('M'), UInt8('M'))
+            auxmap.mm = af
+            mm_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('M'), UInt8('L'))
+            auxmap.ml = af
+            ml_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('n'), UInt8('s'))
+            auxmap.ns = af
+            ns_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('n'), UInt8('l'))
+            auxmap.nl = af
+            nl_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('s'))
+            auxmap.as = af
+            as_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('l'))
+            auxmap.al = af
+            al_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('a'), UInt8('q'))
+            auxmap.aq = af
+            aq_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('M'), UInt8('A'))
+            auxmap.ma = af
+            ma_set = true
+            totalrecords += 1
+        elseif af.tag == (UInt8('A'), UInt8('Q'))
+            auxmap.AQ = af
+            AQ_set = true
+            totalrecords += 1
+        end
+
+        (totalrecords == totalfields) && break
+    end
+
+    !hp_set && (auxmap.hp = nothing)
+    !AQ_set && (auxmap.AQ = nothing)
+    (!mm_set || !ml_set) && error("MM/ML not found")
+
+    if ns_set && nl_set && as_set && al_set && aq_set && ma_set
+        return true
+    else
+        return false
+    end
+end
+
 
 
 ### now add exports and test parsing of this!
@@ -556,18 +714,18 @@ end
 ### auxfield accessor functions
 
 @inline getauxint(record, af) = reinterpret(Int32, (
-                record.data[af.start],
-                record.data[af.start+1],
-                record.data[af.start+2],
-                record.data[af.start+3]
-            ))
+    record.data[af.start],
+    record.data[af.start+1],
+    record.data[af.start+2],
+    record.data[af.start+3]
+))
 
 @inline getauxuint(record, af) = reinterpret(UInt32, (
-                record.data[af.start],
-                record.data[af.start+1],
-                record.data[af.start+2],
-                record.data[af.start+3]
-            ))
+    record.data[af.start],
+    record.data[af.start+1],
+    record.data[af.start+2],
+    record.data[af.start+3]
+))
 
 
 
@@ -603,28 +761,28 @@ end
 end
 
 @inline function getauxuint_flexible(record, af::AuxField)
-    
+
     if af.typechar == UInt8('C')
         return UInt32(record.data[af.start])
     elseif af.typechar == UInt8('S')
         return UInt32(reinterpret(UInt16, (
-                record.data[af.start],
-                record.data[af.start+1])))
+            record.data[af.start],
+            record.data[af.start+1])))
     elseif af.typechar == UInt8('I')
         return reinterpret(UInt32, (
-                    record.data[af.start],
-                    record.data[af.start+1],
-                    record.data[af.start+2],
-                    record.data[af.start+3]
-                ))
+            record.data[af.start],
+            record.data[af.start+1],
+            record.data[af.start+2],
+            record.data[af.start+3]
+        ))
     else
         error("Auxfield typechar: $(af.typechar) is not UInt")
     end
 end
 
 @inline getauxfloat(record, af) = reinterpret(Float32, (
-                record.data[af.start],
-                record.data[af.start+1],
-                record.data[af.start+2],
-                record.data[af.start+3]
-            ))
+    record.data[af.start],
+    record.data[af.start+1],
+    record.data[af.start+2],
+    record.data[af.start+3]
+))
