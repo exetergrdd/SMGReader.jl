@@ -34,25 +34,25 @@ if isdir("test/data")
         @assert indexfile(cramfile) == "test/data/test.cram.crai"
 
 
-        reader_bam  = open(HTSFileReader, bamfile)
+        reader_bam = open(HTSFileReader, bamfile)
         reader_cram = open(HTSFileReader, bamfile)
-        itbam  = eachrecord(reader_bam)
+        itbam = eachrecord(reader_bam)
         itcram = eachrecord(reader_cram)
-        nbam   = length(itbam)
-        ncram  = length(itcram)
+        nbam = length(itbam)
+        ncram = length(itcram)
 
         @test iteratorlength(itbam) == iteratorlength(itcram) == nbam == ncram
-        
+
         regions = [("chr1", 100253156:116796142), ("chr10", 69987747:72423136), ("chr2", 1:243199373)]
         for (chrom, loc) in regions
             @test iteratorlength(eachintersection(reader_bam, chrom, loc)) == iteratorlength(eachintersection(reader_cram, chrom, loc))
         end
-        
+
         @test iteratorlength(eachline(samfile)) == nrecords(reader_bam) == nrecords(reader_cram)
 
         close(reader_bam)
         close(reader_cram)
-        
+
         @test typeof(autodetectaux(bamfile)) == AuxMapModFire
         @test typeof(autodetectaux(cramfile)) == AuxMapModFire
 
@@ -62,7 +62,7 @@ if isdir("test/data")
         @test indexfile(directrna_bam) == "test/data/pdx1.bam.bai"
 
         reader_bam = open(HTSFileReader, directrna_bam)
-        itbam  = eachrecord(reader_bam)
+        itbam = eachrecord(reader_bam)
 
         @test iteratorlength(itbam) == length(collect(eachline(directrna_sam)))
         close(reader_bam)
@@ -81,7 +81,7 @@ function filesequal(fileA, fileB)
     ioA = open(fileA)
     ioB = open(fileB)
     for (lA, lB) in zip(eachline(ioA), eachline(ioB))
-        if lA != lB 
+        if lA != lB
             println("Line mismatch:", "\n", lA, "\n", lB)
             for (k, (fA, fB)) in enumerate(zip(eachsplit(lA, '\t'), eachsplit(lB, '\t')))
                 if fA != fB
@@ -121,19 +121,20 @@ if isdir("test/data")
 
         for record in eachrecord(bamreader)
             @test !iszero(iteratorlength(AuxFieldIter(record)))
-            
-            @test try SMGReader.getmmml(record)
-                    true
-            catch 
+
+            @test try
+                SMGReader.getmmml(record)
+                true
+            catch
                 false
             end
-            
+
             for af in AuxFieldIter(record)
-        
+
                 @test 1 ≤ af.start ≤ af.stop ≤ length(record.data)
-                @test af.typechar ∈ UInt8['A','c','C','s','S','i','I','f','Z','H','B']
+                @test af.typechar ∈ UInt8['A', 'c', 'C', 's', 'S', 'i', 'I', 'f', 'Z', 'H', 'B']
                 if af.typechar == UInt8('B')
-                    @test af.elemtypechar in UInt8['c','C','s','S','i','I','f']
+                    @test af.elemtypechar in UInt8['c', 'C', 's', 'S', 'i', 'I', 'f']
                 else
                     @test af.elemtypechar == UInt8('@')
                 end
@@ -151,7 +152,7 @@ if isdir("test/data")
         @test autodetecthtsdata(cramfile) == StencillingData
         bamreader = open(HTSFileReader, bamfile)
         @test autodetecthtsdata(bamreader) == StencillingData
-        
+
         recorddata = StencillingData(AuxMapMod())
         blockdata = DirectRNAAlignBlocks(AuxMapMod())
         autodata = StencillingData(autodetectaux(bamreader))
@@ -161,7 +162,7 @@ if isdir("test/data")
             processread!(record, autodata)
 
 
-            @test length(recorddata.alignmap) == querylength(record) 
+            @test length(recorddata.alignmap) == querylength(record)
             ### all record in this bam are mapped
             leftposindex = findfirst(!iszero, recorddata.alignmap)
             @test !isnothing(leftposindex)
@@ -186,17 +187,17 @@ if isdir("test/data")
 end
 
 ### tests for Modiciations
-@testset  "Modifications" begin
-    @test SMGReader.getmodbasestrand(UInt8('A'), true)  == 0x01
-    @test SMGReader.getmodbasestrand(UInt8('C'), true)  == 0x02
-    @test SMGReader.getmodbasestrand(UInt8('G'), true)  == 0x04
-    @test SMGReader.getmodbasestrand(UInt8('T'), true)  == 0x08
+@testset "Modifications" begin
+    @test SMGReader.getmodbasestrand(UInt8('A'), true) == 0x01
+    @test SMGReader.getmodbasestrand(UInt8('C'), true) == 0x02
+    @test SMGReader.getmodbasestrand(UInt8('G'), true) == 0x04
+    @test SMGReader.getmodbasestrand(UInt8('T'), true) == 0x08
     @test SMGReader.getmodbasestrand(UInt8('A'), false) == 0x08
     @test SMGReader.getmodbasestrand(UInt8('C'), false) == 0x04
     @test SMGReader.getmodbasestrand(UInt8('G'), false) == 0x02
     @test SMGReader.getmodbasestrand(UInt8('T'), false) == 0x01
     @test_throws ErrorException SMGReader.getmodbasestrand(UInt8('N'), true)
-end 
+end
 
 
 @testset "Parse Mod code" begin
@@ -235,7 +236,7 @@ if isdir("test/data")
         recorddata = StencillingData(AuxMapMod())
         for record in eachrecord(bamreader)
             processread!(record, recorddata)
-            
+
             modit = ModIterator(record, recorddata)
             modlength = length(modit)
             mods = collect(modit)
@@ -244,8 +245,8 @@ if isdir("test/data")
             @test all(mi -> mi.mod ∈ (mod_6mA, mod_5mC, mod_5hmC), mods)
             @test all(mi -> 1 ≤ mi.pos ≤ querylength(record), mods)
 
-            mods_6mA  = filter(m -> m.mod == mod_6mA, mods)
-            mods_5mC  = filter(m -> m.mod == mod_5mC, mods)
+            mods_6mA = filter(m -> m.mod == mod_6mA, mods)
+            mods_5mC = filter(m -> m.mod == mod_5mC, mods)
             mods_5hmC = filter(m -> m.mod == mod_5hmC, mods)
 
             @test length(mods_5mC) == length(mods_5hmC)
@@ -259,13 +260,13 @@ if isdir("test/data")
 
             @test length(mods_6mA) ≤ length(posAT)
             @test length(mods_5mC) ≤ length(posCG) ### already confirmed that 5mC and 5hmC are identical positions
-                
+
             @test all(m -> m.pos ∈ Set(posAT), mods_6mA)
             @test all(m -> m.pos ∈ Set(posCG), mods_5mC)
             break
         end
-        
-        
+
+
         close(bamreader)
     end
 end
@@ -274,34 +275,34 @@ struct FireEntry
     start::Int
     stop::Int
     length::Int
-    qual::Int 
-    refstart::Union{Int, Nothing}
-    refstop::Union{Int, Nothing}
-    reflength::Union{Int, Nothing}
+    qual::Int
+    refstart::Union{Int,Nothing}
+    refstop::Union{Int,Nothing}
+    reflength::Union{Int,Nothing}
 end
 
 function readfiredata(file="test/data/fire_nuc_msp.test.cram.tsv")
 
-    data = Dict{String, Dict{String, Vector{FireEntry}}}()
+    data = Dict{String,Dict{String,Vector{FireEntry}}}()
 
     for line in eachline(file)
         occursin(r"^Read", line) && continue
         fields = split(line, '\t')
         read = fields[1]
         feature = fields[2]
-        start  = parse(Int, fields[3])
-        stop   = parse(Int, fields[4])
+        start = parse(Int, fields[3])
+        stop = parse(Int, fields[4])
         length = parse(Int, fields[5])
-        qual   = parse(Int, fields[6])
-        refstart  = isempty(fields[7]) ? 0 : parse(Int, fields[7])
-        refstop   = isempty(fields[8]) ? 0 : parse(Int, fields[8])
+        qual = parse(Int, fields[6])
+        refstart = isempty(fields[7]) ? 0 : parse(Int, fields[7])
+        refstop = isempty(fields[8]) ? 0 : parse(Int, fields[8])
         reflength = isempty(fields[9]) ? 0 : parse(Int, fields[9])
 
-        haskey(data, read) || (data[read] = Dict{String, Vector{FireEntry}}())
+        haskey(data, read) || (data[read] = Dict{String,Vector{FireEntry}}())
         haskey(data[read], feature) || (data[read][feature] = FireEntry[])
 
         push!(data[read][feature], FireEntry(start, stop, length, qual, refstart, refstop, reflength))
-        
+
     end
     data
 
@@ -326,15 +327,15 @@ if isdir("test/data")
             else
                 reverse!(fn)
                 fn_start = querylength(record) .- (first.(fn) .+ last.(fn))
-                fn_stop  = querylength(record) .- (first.(fn))
+                fn_stop = querylength(record) .- (first.(fn))
             end
             gn = firegenomecoords.(first.(fn), last.(fn), Ref(record), Ref(recorddata), onebased=false, ftstop=true)
 
-            @test fn_start   == getproperty.(ftnucs, :start)
-            @test fn_stop    == getproperty.(ftnucs, :stop)
-            @test last.(fn)  == getproperty.(ftnucs, :length)
+            @test fn_start == getproperty.(ftnucs, :start)
+            @test fn_stop == getproperty.(ftnucs, :stop)
+            @test last.(fn) == getproperty.(ftnucs, :length)
             @test first.(gn) == getproperty.(ftnucs, :refstart)
-            @test last.(gn)  == getproperty.(ftnucs, :refstop)
+            @test last.(gn) == getproperty.(ftnucs, :refstop)
 
 
             ### msps
@@ -343,31 +344,31 @@ if isdir("test/data")
 
             if ispositive(record)
                 fm_start = first.(fm)
-                fm_stop  = first.(fm) .+ getindex.(fm, 2)
+                fm_stop = first.(fm) .+ getindex.(fm, 2)
             else
                 reverse!(fm)
                 fm_start = querylength(record) .- (first.(fm) .+ getindex.(fm, 2))
-                fm_stop  = querylength(record) .- (first.(fm))
+                fm_stop = querylength(record) .- (first.(fm))
             end
             gm = firegenomecoords.(first.(fm), getindex.(fm, 2), Ref(record), Ref(recorddata), onebased=false, ftstop=true)
 
-            @test fm_start         == getproperty.(ftmsps, :start)
-            @test fm_stop          == getproperty.(ftmsps, :stop)
+            @test fm_start == getproperty.(ftmsps, :start)
+            @test fm_stop == getproperty.(ftmsps, :stop)
             @test getindex.(fm, 2) == getproperty.(ftmsps, :length)
-            @test last.(fm)        == getproperty.(ftmsps, :qual)
-            @test first.(gm)       == getproperty.(ftmsps, :refstart)
-            @test last.(gm)        == getproperty.(ftmsps, :refstop)
+            @test last.(fm) == getproperty.(ftmsps, :qual)
+            @test first.(gm) == getproperty.(ftmsps, :refstart)
+            @test last.(gm) == getproperty.(ftmsps, :refstop)
         end
     end
 end
 
 
-if isdir("test/data") 
+if isdir("test/data")
     @testset "polyA stats" begin
 
 
-        ref_polya_lengths = Dict{String, Int}()
-        for line in  eachline("test/data/pdx1.sam")
+        ref_polya_lengths = Dict{String,Int}()
+        for line in eachline("test/data/pdx1.sam")
             readname = ""
             polyAfound = false
             for (k, field) in enumerate(eachsplit(line, '\t'))
@@ -388,7 +389,7 @@ if isdir("test/data")
         for record in eachrecord(reader)
             validflag(record) || continue
             processread!(record, recorddata)
-        
+
             @test polyAtaillength(record, recorddata) == ref_polya_lengths[qname(record)]
 
         end
@@ -402,7 +403,7 @@ function parse_dorado_line(line)
     # @show line
     fields = split(line, "\t")
 
-    
+
 
     read_id = fields[2]
     sequence_length_template = parse(Int, fields[10])
@@ -424,27 +425,27 @@ function parse_dorado_line(line)
     alignment_identity = parse(Float64, fields[27])
     alignment_accuracy = parse(Float64, fields[28])
 
-   
+
 
     (; read_id,
-    sequence_length_template,
-    mean_qscore_template,
-    alignment_genome,
-    alignment_genome_start,
-    alignment_genome_end,
-    alignment_strand_start,
-    alignment_strand_end,
-    alignment_direction,
-    alignment_length,
-    alignment_num_aligned,
-    alignment_num_correct,
-    alignment_num_insertions,
-    alignment_num_deletions,
-    alignment_num_substitutions,
-    alignment_mapq,
-    alignment_strand_coverage,
-    alignment_identity,
-    alignment_accuracy)
+        sequence_length_template,
+        mean_qscore_template,
+        alignment_genome,
+        alignment_genome_start,
+        alignment_genome_end,
+        alignment_strand_start,
+        alignment_strand_end,
+        alignment_direction,
+        alignment_length,
+        alignment_num_aligned,
+        alignment_num_correct,
+        alignment_num_insertions,
+        alignment_num_deletions,
+        alignment_num_substitutions,
+        alignment_mapq,
+        alignment_strand_coverage,
+        alignment_identity,
+        alignment_accuracy)
 
 
 end
@@ -473,8 +474,8 @@ if isdir("test/data")
             alignment_num_correct = alignmentnumcorrect(record, recorddata)
 
             alignment_accuracy = alignmentaccuracy(record, recorddata)
-            alignment_identity = alignmentidentity(record, recorddata) 
-        
+            alignment_identity = alignmentidentity(record, recorddata)
+
 
 
             @test qname(record) == summary.read_id
@@ -482,13 +483,13 @@ if isdir("test/data")
             @test querylength(record) == summary.sequence_length_template
             @test leftposition(record) == summary.alignment_genome_start
             @test rightposition(recorddata) == summary.alignment_genome_end
-            
- 
+
+
             @test summary.alignment_strand_start == (findfirst(!iszero, recorddata.alignmap) - 1)
             @test summary.alignment_strand_end == findlast(!iszero, recorddata.alignmap)
             @test ifelse(ispositive(record), "+", "-") == summary.alignment_direction
 
-         
+
 
             @test summary.alignment_length == alignment_length
             @test summary.alignment_num_aligned == aligned_bases
@@ -498,11 +499,11 @@ if isdir("test/data")
 
             @test abs(summary.alignment_accuracy - alignment_accuracy) < 1e-6
             @test abs(summary.alignment_identity - alignment_identity) < 1e-6
-            
+
 
             ######## AS and de fields
             as = alignmentscore(record, recorddata)
-            de = gapcompresseddivergence(record, recorddata)               
+            de = gapcompresseddivergence(record, recorddata)
 
             @test as isa Int32
             @test de isa Float32
@@ -518,7 +519,7 @@ if isdir("test/data")
 
             t += 1
         end
-        
+
         close(bamreader)
 
     end
@@ -527,7 +528,7 @@ end
 
 @testset "Remote test" begin
     htsfiles = ["http://penrose.ex.ac.uk/data/ont/data/P2/110326_stage4_Hia5/110326_stage4_Hia5/20260311_1456_P2S-02817-A_PBK54013_70d428b2/dorado_v13/fire_hg38/results/110326_stage4_Hia5/fire/110326_stage4_Hia5.fire.cram",
-               "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG00096/alignment/HG00096.mapped.ILLUMINA.bwa.GBR.low_coverage.20120522.bam"]
+        "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG00096/alignment/HG00096.mapped.ILLUMINA.bwa.GBR.low_coverage.20120522.bam"]
 
     for h in htsfiles
         reader = open(HTSFileReader, h)
@@ -536,4 +537,33 @@ end
         close(reader)
     end
 end
+
+if isdir("test/data")
+    @testset "FiberHMM" begin
+        file = "/Users/ndlo201/projects/smf/fiberhmm/fiberhmm.es.hk1.hg38.bam" ### move this into the data dir
+        reader = open(HTSFileReader, file)
+
+        recorddata = FiberHMMData(AuxMapModFireFiberHMM())
+        for record in eachrecord(reader)
+            validflag(record) || continue
+            processread!(record, recorddata) || continue
+
+            # @test !isempty(fiberhmm_msps(record, recorddata))
+            # @test !isempty(fiberhmm_tfs(record, recorddata))
+            # @test !isempty(fiberhmm_nucs(record, recorddata))
+
+            ### confirm that MSP and NUCs as encoded in the MA data match the legacy ns,nl, as, al, data
+
+            @test (recorddata.nuc_starts .- 1) == SMGReader.firenucpos(record, recorddata)
+            @test (recorddata.msp_starts .- 1) == SMGReader.firemsppos(record, recorddata)
+
+            @test (recorddata.nuc_lengths) == SMGReader.firenuclen(record, recorddata)
+            @test (recorddata.msp_lengths) == SMGReader.firemsplen(record, recorddata)
+
+        end
+
+
+    end
+end
+
 
