@@ -599,7 +599,7 @@ Construct iterator of fiberhmm TF positions, lengths, and 3 quality scores in re
 
 
 
-@inline firegenomeelement(r, rdata) = x -> (firegenomecoords(x[1], x[2], r, rdata)..., x[3:end]...)
+@inline firegenomeelement(r, rdata; onebased=false) = x -> (genomecoords(x[1] + !onebased, x[2], r, rdata)..., x[3:end]...)
 @inline firefilt(x, onebased=true) = (x[1] > onebased) && (x[2] > onebased)
 
 """
@@ -614,4 +614,4 @@ Usage:
         ### do something with genome coordinates
     end
 """
-@inline firegenome(record::BamRecord, recorddata::HTSReadData) = it -> Iterators.filter(firefilt, Iterators.map(firegenomeelement(record, recorddata), it))
+@inline firegenome(record::BamRecord, recorddata::HTSReadData; onebased=false) = it -> Iterators.filter(firefilt, Iterators.map(firegenomeelement(record, recorddata; onebased=onebased), it))
