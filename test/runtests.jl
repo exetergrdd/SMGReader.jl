@@ -567,3 +567,214 @@ if isdir("test/data")
 end
 
 
+
+# 1  read_id
+# 2  forward_read_position
+# 3  ref_position
+# 4  chrom
+# 5  mod_strand
+# 6  ref_strand
+# 7  ref_mod_strand
+# 8  fw_soft_clipped_start
+# 9  fw_soft_clipped_end
+# 10 read_length
+# 11 mod_qual
+# 12 mod_code
+# 13 base_qual
+# 14 ref_kmer
+# 15 query_kmer
+# 16 canonical_base
+# 17 modified_primary_base
+# 18 inferred
+# 19 flag
+
+
+struct ModkitRecord
+    read_id::String
+    forward_read_position::Int64
+    ref_position::Int64
+    chrom::String
+    mod_strand::String
+    ref_strand::String
+    ref_mod_strand::String
+    read_length::Int64
+    mod_qual::Float64
+    mod_code::String
+    query_kmer::String
+end
+
+
+function modrecordeapprox(a::ModkitRecord, b::ModkitRecord)
+
+    a.read_id == b.read_id &&
+        a.forward_read_position == b.forward_read_position &&
+        a.ref_position == b.ref_position &&
+        a.chrom == b.chrom &&
+        a.mod_strand == b.mod_strand &&
+        a.ref_strand == b.ref_strand &&
+        a.read_length == b.read_length &&
+        abs(a.mod_qual - b.mod_qual) < 1e-6 &&
+        a.mod_code == b.mod_code &&
+        a.query_kmer == b.query_kmer
+
+end
+
+function parse_modkit_file(file)
+
+    data = ModkitRecord[]
+    for (k, line) in enumerate(eachline(file))
+        k == 1 && continue ### skip header
+
+        read_id = ""
+        forward_read_position = 0
+        ref_position = 0
+        chrom = ""
+        mod_strand = ""
+        ref_strand = ""
+        ref_mod_strand = ""
+        read_length = 0
+        mod_qual = 0
+        mod_code = ""
+        query_kmer = ""
+        for (i, field) in enumerate(eachsplit(line, "\t"))
+            if i == 1
+                read_id = field
+            elseif i == 2
+                forward_read_position = parse(Int, field)
+            elseif i == 3
+                ref_position = parse(Int, field)
+            elseif i == 4
+                chrom = field
+            elseif i == 5
+                mod_strand = field
+            elseif i == 6
+                ref_strand = field
+            elseif i == 7
+                ref_mod_strand = field
+            elseif i == 10
+                read_length = parse(Int, field)
+            elseif i == 11
+                mod_qual = parse(Float64, field)
+            elseif i == 12
+                mod_code = field
+            elseif i == 15
+                query_kmer = field
+            end
+        end
+
+        # @show k, fields
+        push!(data, ModkitRecord(read_id,
+            forward_read_position,
+            ref_position,
+            chrom,
+            mod_strand,
+            ref_strand,
+            ref_mod_strand,
+            read_length,
+            mod_qual,
+            mod_code,
+            query_kmer))
+    end
+
+    data
+end
+
+
+
+
+
+
+### modkit test
+if isdir("test/data")
+    @testset "modkit extract tests" begin
+        file = "test/data/test.modkit.tsv"
+        data = parse_modkit_file(file)
+
+        reader = open(HTSFileReader, bamfile)
+        recorddata = StencillingData(AuxMapModFireQC())
+        bam_mkd = ModkitRecord[]
+
+        for record in eachrecord(reader)
+            processread!(record, recorddata)
+
+            read_id = qname(record)
+            chrom = refname(reader, record)
+            ref_strand = ispositive(record) ? "+" : "-"
+            readlength = querylength(record)
+
+            for mod in ModIterator(record, recorddata)
+                forward_read_position = mod.pos
+                ref_position = genomecoords(mod.pos, record, recorddata; onebased=false)
+
+                mod_strand = mod.strand ? "+" : "-"
+                ref_mod_strand = mod.strand ? "+" : "-"
+                mod_qual = (mod.prob + 0.5) / 256.0
+                mod_code = ifelse(mod.mod == mod_6mA, "a", ifelse(mod.mod == mod_5mC, "m", ifelse(mod.mod == mod_5hmC, "h", "n")))
+                query_kmer = replace(kmer(record, mod.pos, 5), "N" => "-")
+
+                push!(bam_mkd, ModkitRecord(read_id,
+                    forward_read_position - 1,
+                    ifelse(ref_position == 0, -1, ref_position),
+                    chrom,
+                    mod_strand,
+                    ref_strand,
+                    ref_mod_strand,
+                    readlength,
+                    mod_qual,
+                    mod_code,
+                    query_kmer))
+            end
+            # break
+        end
+
+        sort!(bam_mkd, by=x -> (x.read_id, x.chrom, x.ref_position, x.forward_read_position))
+        sort!(data, by=x -> (x.read_id, x.chrom, x.ref_position, x.forward_read_position))
+
+        @test all(modrecordeapprox.(data, bam_mkd))
+
+    end
+end
+
+
+if isdir("test/data")
+    @testset "kmer string vs index equivalence" begin
+        reader = open(HTSFileReader, bamfile)
+        recorddata = StencillingData(AuxMapModFireQC())
+
+        all_match = true
+        reads_tested = 0
+
+        for record in eachrecord(reader)
+            processread!(record, recorddata) || continue
+
+            for mod in ModIterator(record, recorddata)
+                for k in (3, 5, 7, 9)
+                    kstr = kmer(record, mod.pos, k)
+                    kidx = kmer_index(record, mod.pos, k)
+                    # kvi = kmer_index(record, mod.pos, Val(7))
+
+                    # Manually compute the index from the string representation
+                    expected_idx = 0
+                    h = k >> 1
+                    for (i, c) in enumerate(kstr)
+                        i == (h + 1) && continue # Skip central mod base
+                        bval = c == 'A' ? 0 : c == 'C' ? 1 : c == 'G' ? 2 : c == 'T' ? 3 : 0
+                        expected_idx = expected_idx * 4 + bval
+                    end
+                    expected_idx += 1
+
+                    if kidx != expected_idx
+                        @error "Mismatch" k kstr kidx expected_idx
+                        all_match = false
+                    end
+                end
+            end
+
+            reads_tested += 1
+            reads_tested >= 50 && break
+        end
+
+        @test all_match
+        close(reader)
+    end
+end
