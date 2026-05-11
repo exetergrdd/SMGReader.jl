@@ -124,3 +124,36 @@ end
 @inline kmer3_index(record::BamRecord, pos::Int) = kmer_index(record, pos, Val(3))
 @inline kmer5_index(record::BamRecord, pos::Int) = kmer_index(record, pos, Val(5))
 @inline kmer7_index(record::BamRecord, pos::Int) = kmer_index(record, pos, Val(7))
+
+"""
+    index_to_kmer(index::Int, k::Int, center_base::Char)
+
+Convert a 1-based `index` (from `1:4^(k-1)`) back to a `k`-mer string.
+`center_base` is inserted at the center of the `k`-mer.
+"""
+function index_to_kmer(index::Int, k::Int, center_base::Char)
+    @assert isodd(k) "k must be odd"
+    h = k >> 1
+    
+    bases = UInt8['A', 'C', 'G', 'T']
+    buffer = Vector{UInt8}(undef, k)
+    
+    val = index - 1
+    
+    # Decode from right to left to consume lowest bits first
+    for d in h:-1:-h
+        if d == 0
+            buffer[h + 1] = UInt8(center_base)
+            continue
+        end
+        bval = val & 0x03 # Equivalent to val % 4
+        buffer[h + 1 + d] = bases[bval + 1]
+        val >>= 2
+    end
+    
+    return String(buffer)
+end
+
+@inline index_to_kmer3(index::Int, center_base::Char) = index_to_kmer(index, 3, center_base)
+@inline index_to_kmer5(index::Int, center_base::Char) = index_to_kmer(index, 5, center_base)
+@inline index_to_kmer7(index::Int, center_base::Char) = index_to_kmer(index, 7, center_base)
