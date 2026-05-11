@@ -4,7 +4,7 @@ export HTSFileReader, indexfile, BamRecord, nrecords, referencedict,
     eachintersection, eachrecord,
     qname, refname, cigarvec, cigarstring, qual, ispositive, validflag, seq, flag, leftposition, mappingquality, matepos, materefname, querylength, templatelength,
     AuxField, AuxFieldIter, AuxMapMod, AuxMapModPolyA, AuxMapModFire, AuxMapModFiberTools, AuxMapModFireQC, AuxMapFiberHMM, AuxMapModFireFiberHMM,
-    autodetectaux, Modification, ModificationInfo, ModIterator, autodetectmods,
+    autodetectaux, Modification, ModificationInfo, ModIterator, autodetectmods, kmer, kmer_index, kmer3_index, kmer5_index, kmer7_index,
     haplotype, hashaplotype, polyAtaillength, haspolyAtail, editdistance, alignmentscore, gapcompresseddivergence, basecallqscore, rightposition,
     numinsertions, referencespan, alignedbases, alignmentnumcorrect, alignmentlength, alignmentidentity, alignmentaccuracy,
     mod_6mA, mod_5mC, mod_5hmC, mod_4mC, mod_inosine, mod_pseU, mod_2OmeA, mod_2OmeC, mod_2OmeG, mod_2OmeU,
@@ -20,6 +20,7 @@ include("alignmentmap.jl")
 include("auxfields.jl")
 include("processedread.jl")
 include("modifications.jl")
+include("kmers.jl")
 include("sam.jl")
 include("alignmentaccessors.jl")
 
