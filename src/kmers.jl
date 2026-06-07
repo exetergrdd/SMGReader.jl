@@ -1,5 +1,5 @@
 @inline function _get_base_at(record::BamRecord, p::Int)
-    l = record.core.l_qseq
+    l = querylength(record)
     if 1 <= p <= l
         off = record.core.l_qname + (record.core.n_cigar << 2) + 1
         bytepos = 1 + ((p - 1) >> 1)
@@ -9,6 +9,37 @@
     return 0x0f # N
 end
 
+const BAM_TO_3BIT = (
+    0x07, 0x00, 0x01, 0x07, 0x02, 0x07, 0x07, 0x07, 
+    0x03, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07
+) # A=1->0, C=2->1, G=4->2, T=8->3, everything else 7
+
+const BAM_TO_3BIT_RC = (
+    0x07, 0x03, 0x02, 0x07, 0x01, 0x07, 0x07, 0x07, 
+    0x00, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07
+) # A=1->T=3, C=2->G=2, G=4->C=1, T=8->A=0, everything else 7
+
+function populate_standard_bases!(record::BamRecord, seq_mods::VectorBuffer{UInt8})
+    l = querylength(record)
+    off = record.core.l_qname + (record.core.n_cigar << 2) + 1
+    
+    if ispositive(record)
+        for p in 1:l
+            bytepos = 1 + ((p - 1) >> 1)
+            byte = record.data[off+bytepos-1]
+            b = iseven(p) ? (byte & 0x0f) : (byte >> 4)
+            seq_mods[p] = BAM_TO_3BIT[b + 1]
+        end
+    else
+        for p in 1:l
+            bam_p = l - p + 1
+            bytepos = 1 + ((bam_p - 1) >> 1)
+            byte = record.data[off+bytepos-1]
+            b = iseven(bam_p) ? (byte & 0x0f) : (byte >> 4)
+            seq_mods[p] = BAM_TO_3BIT_RC[b + 1]
+        end
+    end
+end
 @inline function _get_read_base(record::BamRecord, pos::Int, d::Int)
     l = record.core.l_qseq
     if ispositive(record)
@@ -157,3 +188,78 @@ end
 @inline index_to_kmer3(index::Int, center_base::Char) = index_to_kmer(index, 3, center_base)
 @inline index_to_kmer5(index::Int, center_base::Char) = index_to_kmer(index, 5, center_base)
 @inline index_to_kmer7(index::Int, center_base::Char) = index_to_kmer(index, 7, center_base)
+
+"""
+    kmer_mod_index(recorddata::StencillingDataKmer, pos::Int, k::Int)
+
+Extract the `k`-mer index (for a 7-letter alphabet) from the pre-populated `seq_mods` buffer.
+"""
+function kmer_mod_index(recorddata::StencillingDataKmer, pos::Int, k::Int)
+    k == 3 && return kmer_mod_index(recorddata, pos, Val(3))
+    k == 5 && return kmer_mod_index(recorddata, pos, Val(5))
+    k == 7 && return kmer_mod_index(recorddata, pos, Val(7))
+
+    @assert isodd(k) "k must be odd"
+    h = k >> 1
+    idx::UInt64 = 0
+    len = length(recorddata.seq_mods)
+    
+    for d in -h:h
+        d == 0 && continue
+        p = pos + d
+        bval = (1 <= p <= len) ? recorddata.seq_mods[p] : 0x07
+        idx = (idx << 3) | bval
+    end
+    
+    return idx + 1
+end
+
+@inline function kmer_mod_index(recorddata::StencillingDataKmer, pos::Int, ::Val{3})
+    len = length(recorddata.seq_mods)
+    p1 = pos - 1
+    p2 = pos + 1
+    b1 = (1 <= p1 <= len) ? recorddata.seq_mods[p1] : 0x07
+    b2 = (1 <= p2 <= len) ? recorddata.seq_mods[p2] : 0x07
+    
+    idx::UInt64 = b1
+    idx = (idx << 3) | b2
+    return idx + 1
+end
+
+@inline function kmer_mod_index(recorddata::StencillingDataKmer, pos::Int, ::Val{5})
+    len = length(recorddata.seq_mods)
+    p1 = pos - 2; p2 = pos - 1; p3 = pos + 1; p4 = pos + 2
+    b1 = (1 <= p1 <= len) ? recorddata.seq_mods[p1] : 0x07
+    b2 = (1 <= p2 <= len) ? recorddata.seq_mods[p2] : 0x07
+    b3 = (1 <= p3 <= len) ? recorddata.seq_mods[p3] : 0x07
+    b4 = (1 <= p4 <= len) ? recorddata.seq_mods[p4] : 0x07
+    
+    idx::UInt64 = b1
+    idx = (idx << 3) | b2
+    idx = (idx << 3) | b3
+    idx = (idx << 3) | b4
+    return idx + 1
+end
+
+@inline function kmer_mod_index(recorddata::StencillingDataKmer, pos::Int, ::Val{7})
+    len = length(recorddata.seq_mods)
+    p1 = pos - 3; p2 = pos - 2; p3 = pos - 1; p4 = pos + 1; p5 = pos + 2; p6 = pos + 3
+    b1 = (1 <= p1 <= len) ? recorddata.seq_mods[p1] : 0x07
+    b2 = (1 <= p2 <= len) ? recorddata.seq_mods[p2] : 0x07
+    b3 = (1 <= p3 <= len) ? recorddata.seq_mods[p3] : 0x07
+    b4 = (1 <= p4 <= len) ? recorddata.seq_mods[p4] : 0x07
+    b5 = (1 <= p5 <= len) ? recorddata.seq_mods[p5] : 0x07
+    b6 = (1 <= p6 <= len) ? recorddata.seq_mods[p6] : 0x07
+    
+    idx::UInt64 = b1
+    idx = (idx << 3) | b2
+    idx = (idx << 3) | b3
+    idx = (idx << 3) | b4
+    idx = (idx << 3) | b5
+    idx = (idx << 3) | b6
+    return idx + 1
+end
+
+@inline kmer3_mod_index(recorddata::StencillingDataKmer, pos::Int) = kmer_mod_index(recorddata, pos, Val(3))
+@inline kmer5_mod_index(recorddata::StencillingDataKmer, pos::Int) = kmer_mod_index(recorddata, pos, Val(5))
+@inline kmer7_mod_index(recorddata::StencillingDataKmer, pos::Int) = kmer_mod_index(recorddata, pos, Val(7))
