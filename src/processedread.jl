@@ -25,6 +25,20 @@ end
 StencillingData(am::T) where {T} = StencillingData{T}(VectorBuffer{Int}(READ_BUFFER_LENGTH), am)
 
 """
+    StencillingDataKmer(auxmap::AuxMap, prob_threshold::UInt8=0x80)
+
+Construct preallocated HTS read data building a read to genome map for chromatin stencilling setting an BAM auxillary data map `AuxMap`.
+This type also tracks the modified sequence states of the read for fast k-mer extraction.
+"""
+struct StencillingDataKmer{T} <: HTSReadData
+    alignmap::VectorBuffer{Int}
+    auxmap::T
+    seq_mods::VectorBuffer{UInt8}
+    prob_threshold::UInt8
+end
+StencillingDataKmer(am::T, prob_threshold::UInt8=0x80) where {T} = StencillingDataKmer{T}(VectorBuffer{Int}(READ_BUFFER_LENGTH), am, VectorBuffer{UInt8}(READ_BUFFER_LENGTH), prob_threshold)
+
+"""
     DirectRNA(auxmap::AuxMap)
 
 Construct preallocated HTS read data building a read to genome map for DirectRNA setting an BAM auxillary data map `AuxMap`.
@@ -148,6 +162,33 @@ Process read mapping auxillary fields and building read to genome map using prea
 @inline function processread!(record::BamRecord, recorddata::HTSReadData)
     readtogenome!(record, recorddata.alignmap)
     auxmap!(record, recorddata.auxmap)
+end
+
+@inline function processread!(record::BamRecord, recorddata::StencillingDataKmer)
+    readtogenome!(record, recorddata.alignmap)
+    auxmap!(record, recorddata.auxmap)
+    
+    # 1. Resize the seq_mods buffer to query length
+    len = querylength(record)
+    setlength!(recorddata.seq_mods, len)
+    
+    # 2. Pass 1: Decode standard bases into the buffer
+    populate_standard_bases!(record, recorddata.seq_mods)
+    
+    # 3. Pass 2: Overlay modifications using ModIterator
+    for modinfo in ModIterator(record, recorddata)
+        if modinfo.prob >= recorddata.prob_threshold
+            if modinfo.mod == mod_5mC
+                recorddata.seq_mods[modinfo.pos] = 5
+            elseif modinfo.mod == mod_5hmC
+                recorddata.seq_mods[modinfo.pos] = 6
+            elseif modinfo.mod == mod_6mA
+                recorddata.seq_mods[modinfo.pos] = 4
+            end
+        end
+    end
+    auxmap!(record, recorddata.auxmap)
+
 end
 
 @inline function processread!(record::BamRecord, recorddata::DirectRNAAlignBlocks)
