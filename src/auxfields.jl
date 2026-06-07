@@ -204,512 +204,6 @@ end
 autodetectaux(reader::HTSFileReader) = autodetectaux(reader.file)
 
 
-abstract type AuxMap end
-
-"""
-    AuxMapMod()
-
-Construct an map of the aux data for HP, MM, ML fields. For standard use in chromatin stencilling (non-fire) and direct RNA.
-"""
-mutable struct AuxMapMod <: AuxMap
-    hp::Union{AuxField,Nothing}
-    mm::AuxField
-    ml::AuxField
-end
-AuxMapMod() = AuxMapMod(AuxField(), AuxField(), AuxField())
-
-
-"""
-    AuxMapModPolyA()
-
-Construct an map of the aux data for HP, MM, ML fields. For standard use in chromatin stencilling (non-fire) and direct RNA.
-"""
-mutable struct AuxMapModPolyA <: AuxMap
-    hp::Union{AuxField,Nothing}
-    mm::AuxField
-    ml::AuxField
-    pt::Union{AuxField,Nothing}
-end
-AuxMapModPolyA() = AuxMapModPolyA(AuxField(), AuxField(), AuxField(), AuxField())
-
-"""
-    AuxMapModFiberTools()
-
-Construct and map of the aux data for a Fiber tools BAM/CRAM mapping fields (that missing the aq fire field)
-
-  - hp: Haplotype
-  - mm: Run length encoded mod bases
-  - ml: Mod Probability
-  - ns: Nucleosome positions
-  - nl: nucleosome length
-  - as: msp positions
-  - al: msp lengths
-"""
-mutable struct AuxMapModFiberTools <: AuxMap
-    hp::Union{AuxField,Nothing}
-    mm::AuxField
-    ml::AuxField
-    ns::AuxField
-    nl::AuxField
-    as::AuxField
-    al::AuxField
-end
-AuxMapModFiberTools() = AuxMapModFiberTools(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
-
-"""
-    AuxMapModFire()
-
-Construct and map of the aux data for a FIRE BAM/CRAM mapping fields
-
-  - hp: Haplotype
-  - mm: Run length encoded mod bases
-  - ml: Mod Probability
-  - ns: Nucleosome positions
-  - nl: nucleosome length
-  - as: msp positions
-  - al: msp lengths
-  - aq: msp quality score
-"""
-mutable struct AuxMapModFire <: AuxMap
-    hp::Union{AuxField,Nothing}
-    mm::AuxField
-    ml::AuxField
-    ns::AuxField
-    nl::AuxField
-    as::AuxField
-    al::AuxField
-    aq::AuxField
-end
-AuxMapModFire() = AuxMapModFire(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
-
-
-
-
-
-"""
-    AuxMapModFireQC()
-
-Construct and map of the aux data for a FIRE BAM/CRAM mapping fields
-
-  - NM: edit distance
-  - AS: alignment score
-  - de: divergance (minimap2)
-  - qs: ONT q score
-  - hp: Haplotype
-  - mm: Run length encoded mod bases
-  - ml: Mod Probability
-  - ns: Nucleosome positions
-  - nl: nucleosome length
-  - as: msp positions
-  - al: msp lengths
-  - aq: msp quality score
-"""
-mutable struct AuxMapModFireQC <: AuxMap
-
-    NM::AuxField
-    AS::AuxField
-    de::AuxField
-    qs::Union{AuxField,Nothing} ### allow qs to be nothing for pacbio for example
-    hp::Union{AuxField,Nothing}
-    mm::AuxField
-    ml::AuxField
-    ns::AuxField
-    nl::AuxField
-    as::AuxField
-    al::AuxField
-    aq::AuxField
-end
-AuxMapModFireQC() = AuxMapModFireQC(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
-
-
-"""
-    AuxMapFiberHMM()
-
-Construct and map of the aux data for FiberHMM BAM/CRAM mapping fields
-
-  - hp: Haplotype
-  - mm: Run length encoded mod bases
-  - ml: Mod Probability
-  - ma: Molecular annotation spec tag
-  - AQ: Annotation quality score array
-"""
-mutable struct AuxMapFiberHMM <: AuxMap
-    hp::Union{AuxField,Nothing}
-    mm::AuxField
-    ml::AuxField
-    ma::AuxField
-    AQ::Union{AuxField,Nothing}
-end
-AuxMapFiberHMM() = AuxMapFiberHMM(AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
-
-"""
-    AuxMapModFireFiberHMM()
-
-Construct an map of the aux data for both Fire and FiberHMM fields
-"""
-mutable struct AuxMapModFireFiberHMM <: AuxMap
-    hp::Union{AuxField,Nothing}
-    mm::AuxField
-    ml::AuxField
-    ns::AuxField
-    nl::AuxField
-    as::AuxField
-    al::AuxField
-    aq::AuxField
-    ma::AuxField
-    AQ::Union{AuxField,Nothing}
-end
-AuxMapModFireFiberHMM() = AuxMapModFireFiberHMM(AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField(), AuxField())
-
-
-
-"""
-    auxmap!(record::BamRecord, auxmap<:Auxmap)
-
-Construct map of auxillary data from `record` identifying fields specified by `auxmap`.
-"""
-@inline function auxmap!(record::BamRecord, auxmap::AuxMapMod)
-    hp_set = false
-    mm_set = false
-    ml_set = false
-
-    for af in AuxFieldIter(record)
-        if af.tag == (UInt8('H'), UInt8('P'))
-            auxmap.hp = af
-            hp_set = true
-        elseif af.tag == (UInt8('M'), UInt8('M'))
-            auxmap.mm = af
-            mm_set = true
-        elseif af.tag == (UInt8('M'), UInt8('L'))
-            auxmap.ml = af
-            ml_set = true
-        end
-        mm_set && ml_set && hp_set && break
-    end
-    !hp_set && (auxmap.hp = nothing)
-
-    (!mm_set || !ml_set) && error("MM/ML not found")
-
-    return true
-    # (isnothing(mm) || isnothing(ml)) && (success = false) # error("MM/ML not found")
-    # auxmap.hp = hp
-    # auxmap.mm = mm
-    # auxmap.ml = ml
-    # success
-end
-
-
-@inline function auxmap!(record::BamRecord, auxmap::AuxMapModPolyA)
-    hp_set = false
-    mm_set = false
-    ml_set = false
-    pt_set = false
-
-    for af in AuxFieldIter(record)
-        if af.tag == (UInt8('H'), UInt8('P'))
-            auxmap.hp = af
-            hp_set = true
-        elseif af.tag == (UInt8('M'), UInt8('M'))
-            auxmap.mm = af
-            mm_set = true
-        elseif af.tag == (UInt8('M'), UInt8('L'))
-            auxmap.ml = af
-            ml_set = true
-        elseif af.tag == (UInt8('p'), UInt8('t'))
-            auxmap.pt = af
-            pt_set = true
-        end
-        mm_set && ml_set && hp_set && pt_set && break
-    end
-    !hp_set && (auxmap.hp = nothing)
-    !pt_set && (auxmap.pt = nothing)
-
-    (!mm_set || !ml_set) && error("MM/ML not found")
-
-    return true
-end
-
-@inline function auxmap!(record, auxmap::AuxMapModFire)
-    hp_set = false
-    mm_set = false
-    ml_set = false
-    ns_set = false
-    nl_set = false
-    as_set = false
-    al_set = false
-    aq_set = false
-
-    totalfields = 8
-    totalrecords = 0
-
-    for af in AuxFieldIter(record)
-        if af.tag == (UInt8('H'), UInt8('P'))
-            auxmap.hp = af
-            hp_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('M'), UInt8('M'))
-            auxmap.mm = af
-            mm_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('M'), UInt8('L'))
-            auxmap.ml = af
-            ml_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('n'), UInt8('s'))
-            auxmap.ns = af
-            ns_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('n'), UInt8('l'))
-            auxmap.nl = af
-            nl_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('s'))
-            auxmap.as = af
-            as_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('l'))
-            auxmap.al = af
-            al_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('q'))
-            auxmap.aq = af
-            aq_set = true
-            totalrecords += 1
-        end
-
-        (totalrecords == totalfields) && break
-    end
-
-
-    !hp_set && (auxmap.hp = nothing)
-    (!mm_set || !ml_set) && error("MM/ML not found")
-
-    if ns_set && nl_set && as_set && al_set && aq_set
-        return true
-    else
-        return false
-    end
-    # (isnothing(ns) || isnothing(nl) || isnothing(as) || isnothing(al) || isnothing(aq)) && (success = false)  #error("Fire Aux fields  not found")
-
-
-    # auxmap.hp = hp
-    # auxmap.mm = mm
-    # auxmap.ml = ml
-    # auxmap.ns = ns
-    # auxmap.nl = nl
-    # auxmap.as = as
-    # auxmap.al = al
-    # auxmap.aq = aq
-    # auxmap
-    # success
-end
-
-
-
-@inline function auxmap!(record, auxmap::AuxMapModFireQC)
-
-
-    NM_set = false
-    AS_set = false
-    de_set = false
-    qs_set = false
-
-    hp_set = false
-    mm_set = false
-    ml_set = false
-    ns_set = false
-    nl_set = false
-    as_set = false
-    al_set = false
-    aq_set = false
-
-    totalfields = 12
-    totalrecords = 0
-
-    for af in AuxFieldIter(record)
-        if af.tag == (UInt8('N'), UInt8('M'))
-            auxmap.NM = af
-            NM_set = true
-            totalrecords += 1
-
-        elseif af.tag == (UInt8('A'), UInt8('S'))
-            auxmap.AS = af
-            AS_set = true
-            totalrecords += 1
-
-        elseif af.tag == (UInt8('d'), UInt8('e'))
-            auxmap.de = af
-            de_set = true
-            totalrecords += 1
-
-        elseif af.tag == (UInt8('q'), UInt8('s'))
-            auxmap.qs = af
-            qs_set = true
-            totalrecords += 1
-
-        elseif af.tag == (UInt8('H'), UInt8('P'))
-            auxmap.hp = af
-            hp_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('M'), UInt8('M'))
-            auxmap.mm = af
-            mm_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('M'), UInt8('L'))
-            auxmap.ml = af
-            ml_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('n'), UInt8('s'))
-            auxmap.ns = af
-            ns_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('n'), UInt8('l'))
-            auxmap.nl = af
-            nl_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('s'))
-            auxmap.as = af
-            as_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('l'))
-            auxmap.al = af
-            al_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('q'))
-            auxmap.aq = af
-            aq_set = true
-            totalrecords += 1
-        end
-
-        (totalrecords == totalfields) && break
-    end
-
-
-    !hp_set && (auxmap.hp = nothing)
-    !qs_set && (auxmap.qs = nothing)
-    (!mm_set || !ml_set) && error("MM/ML not found")
-
-    if NM_set & AS_set & de_set & ns_set && nl_set && as_set && al_set && aq_set
-        return true
-    else
-        return false
-    end
-
-end
-
-
-@inline function auxmap!(record, auxmap::AuxMapFiberHMM)
-    hp_set = false
-    mm_set = false
-    ml_set = false
-    ma_set = false
-    AQ_set = false
-
-    for af in AuxFieldIter(record)
-        if af.tag == (UInt8('H'), UInt8('P'))
-            auxmap.hp = af
-            hp_set = true
-        elseif af.tag == (UInt8('M'), UInt8('M'))
-            auxmap.mm = af
-            mm_set = true
-        elseif af.tag == (UInt8('M'), UInt8('L'))
-            auxmap.ml = af
-            ml_set = true
-        elseif af.tag == (UInt8('M'), UInt8('A'))
-            auxmap.ma = af
-            ma_set = true
-        elseif af.tag == (UInt8('A'), UInt8('Q'))
-            auxmap.AQ = af
-            AQ_set = true
-        end
-        mm_set && ml_set && ma_set && hp_set && AQ_set && break
-    end
-
-    !hp_set && (auxmap.hp = nothing)
-    !AQ_set && (auxmap.AQ = nothing)
-
-    (!mm_set || !ml_set) && error("MM/ML not found")
-    !ma_set && return false
-
-    return true
-end
-
-@inline function auxmap!(record, auxmap::AuxMapModFireFiberHMM)
-    hp_set = false
-    mm_set = false
-    ml_set = false
-    ns_set = false
-    nl_set = false
-    as_set = false
-    al_set = false
-    aq_set = false
-    ma_set = false
-    AQ_set = false
-
-    totalfields = 10
-    totalrecords = 0
-
-    for af in AuxFieldIter(record)
-        if af.tag == (UInt8('H'), UInt8('P'))
-            auxmap.hp = af
-            hp_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('M'), UInt8('M'))
-            auxmap.mm = af
-            mm_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('M'), UInt8('L'))
-            auxmap.ml = af
-            ml_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('n'), UInt8('s'))
-            auxmap.ns = af
-            ns_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('n'), UInt8('l'))
-            auxmap.nl = af
-            nl_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('s'))
-            auxmap.as = af
-            as_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('l'))
-            auxmap.al = af
-            al_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('a'), UInt8('q'))
-            auxmap.aq = af
-            aq_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('M'), UInt8('A'))
-            auxmap.ma = af
-            ma_set = true
-            totalrecords += 1
-        elseif af.tag == (UInt8('A'), UInt8('Q'))
-            auxmap.AQ = af
-            AQ_set = true
-            totalrecords += 1
-        end
-
-        (totalrecords == totalfields) && break
-    end
-
-    !hp_set && (auxmap.hp = nothing)
-    !AQ_set && (auxmap.AQ = nothing)
-    (!mm_set || !ml_set) && error("MM/ML not found")
-
-    if ns_set && nl_set && as_set && al_set && aq_set && ma_set
-        return true
-    else
-        return false
-    end
-end
-
-
-
-### now add exports and test parsing of this!
-
 
 ### auxfield accessor functions
 
@@ -726,7 +220,6 @@ end
     record.data[af.start+2],
     record.data[af.start+3]
 ))
-
 
 
 
@@ -786,3 +279,260 @@ end
     record.data[af.start+2],
     record.data[af.start+3]
 ))
+
+
+
+"""
+    auxmap!(record::BamRecord, auxmap::AuxMap)
+
+Construct a map of auxiliary data from `record`, identifying and extracting 
+only the specific fields declared by the provided `auxmap`. 
+Returns `true` if all required fields are found, `false` otherwise.
+"""
+function auxmap! end
+
+"""
+    @auxfieldset SetName [ExistingSets...] [require=(...)] [opt=(...)]
+"""
+macro auxfieldset(set_name, args...)
+    all_fields = Expr[]
+    
+    for arg in args
+        if arg isa Symbol
+            # NEW: Allow sets to inherit from other sets!
+            group_fields = Core.eval(__module__, arg)
+            append!(all_fields, group_fields)
+            
+        elseif arg isa Expr && arg.head == :(=)
+            wrapper = arg.args[1]
+            tuple_expr = arg.args[2]
+            
+            (wrapper == :require || wrapper == :opt) || 
+                error("Unknown keyword: $wrapper. Use 'require=' or 'opt='")
+            
+            items = (tuple_expr isa Expr && tuple_expr.head == :tuple) ? tuple_expr.args : [tuple_expr]
+            
+            for item in items
+                local fname::Symbol
+                local tag_str::String
+                
+                if item isa QuoteNode || item isa Symbol
+                    sym = item isa QuoteNode ? item.value : item
+                    fname = sym
+                    tag_str = String(sym)
+                elseif item isa String
+                    fname = Symbol(item)
+                    tag_str = item
+                elseif item isa Expr && item.head == :call && item.args[1] == :(=>)
+                    fname_raw = item.args[2]
+                    tag_raw = item.args[3]
+                    fname = fname_raw isa QuoteNode ? fname_raw.value : Symbol(fname_raw)
+                    tag_str = tag_raw isa QuoteNode ? String(tag_raw.value) : String(tag_raw)
+                else
+                    error("Invalid field format: $item")
+                end
+                
+                if wrapper == :opt
+                    push!(all_fields, :($fname::Union{AuxField, Nothing} => $tag_str))
+                else
+                    push!(all_fields, :($fname::AuxField => $tag_str))
+                end
+            end
+        else
+            error("Invalid argument format in @auxfieldset")
+        end
+    end
+    
+    quoted_fields = [Meta.quot(f) for f in all_fields]
+    
+    return esc(quote
+        const $set_name = [$(quoted_fields...)]
+    end)
+end
+
+
+"""
+    @auxmap StructName Set1 Set2 ...
+"""
+macro auxmap(struct_name, args...)
+    all_fields = Expr[]
+    
+    # 1. Gather all the fields from the provided sets
+    for arg in args
+        if arg isa Symbol
+            group_fields = Core.eval(__module__, arg)
+            append!(all_fields, group_fields)
+        else
+            error("Arguments to @auxmap must be set names (e.g., ModFields)")
+        end
+    end
+    
+    # 2. Prepare the loop logic
+    struct_fields = Expr[]
+    inits = Any[]
+    ifs = Tuple{Expr, Expr}[]
+    opt_clears = Expr[]
+    req_checks = Expr[]
+    flags = Symbol[]
+    
+    for decl_pair in all_fields
+        decl = decl_pair.args[2]
+        tag = decl_pair.args[3]
+        
+        fname = decl.args[1]
+        ftype = decl.args[2]
+        
+        t1, t2 = UInt8(tag[1]), UInt8(tag[2])
+        flag = Symbol(fname, "_set")
+        
+        is_opt = (ftype isa Expr && ftype.head == :curly && ftype.args[1] == :Union && :Nothing in ftype.args)
+
+        push!(struct_fields, decl)
+        push!(inits, is_opt ? :nothing : :(AuxField()))
+    
+        push!(flags, flag)
+        
+        push!(ifs, (:(af.tag == ($t1, $t2)), quote
+            auxmap.$fname = af
+            $flag = true
+            totalrecords += 1
+        end))
+        
+        if is_opt
+            push!(opt_clears, :(!$flag && (auxmap.$fname = nothing)))
+        else
+            push!(req_checks, :(!$flag && return false)) # Fast fail if required is missing
+        end
+    end
+    
+    total_fields = length(struct_fields)
+    
+    chain = :()
+    for i in reverse(1:length(ifs))
+        chain = Expr(:elseif, ifs[i][1], ifs[i][2], chain)
+    end
+    chain.head = :if 
+    
+    flag_inits = [:($f = false) for f in flags]
+    pkg_mod = @__MODULE__ 
+    
+    # 3. Generate the struct and function
+    return quote
+        Core.@__doc__ mutable struct $(esc(struct_name)) <: AuxMap
+            $(map(esc, struct_fields)...)
+        end
+        
+        $(esc(struct_name))() = $(esc(struct_name))($(map(esc, inits)...))
+        
+        # Notice we removed map(esc, ...) and esc(chain). 
+        # We let Julia's hygiene system handle all internal variables natively.
+        @inline function $pkg_mod.auxmap!(record::BamRecord, auxmap::$(esc(struct_name)))
+            $(flag_inits...)
+            totalrecords = 0
+            
+            for af in AuxFieldIter(record)
+                $chain
+                totalrecords == $total_fields && break
+            end
+            
+            $(opt_clears...)
+            $(req_checks...)
+            
+            return true
+        end
+    end
+end
+
+@auxfieldset ModFields require=(mm => :MM, ml => :ML) opt=(hp => :HP)
+@auxfieldset FireFields require=(:ns, :nl, :as, :al) opt=(:aq)
+@auxfieldset QCFields   require=(:NM, :AS, :de) opt=(:qs)
+@auxfieldset PolyAFields opt=(:pt)
+@auxfieldset MAFields require=(:ma, :AQ)
+
+
+abstract type AuxMap end
+
+
+
+"""
+    AuxMapMod()
+
+Construct an map of the aux data for HP, MM, ML fields. For standard use in chromatin stencilling (non-fire) and direct RNA.
+"""
+@auxmap AuxMapMod ModFields
+
+
+"""
+    AuxMapModPolyA()
+
+Construct an map of the aux data for HP, MM, ML fields with optional pt field for polyA tail 
+"""
+@auxmap AuxMapModPolyA ModFields PolyAFields
+
+
+"""
+    AuxMapModFire()
+
+Construct and map of the aux data for a FIRE BAM/CRAM mapping fields
+
+  - hp: Haplotype
+  - mm: Run length encoded mod bases
+  - ml: Mod Probability
+  - ns: Nucleosome positions
+  - nl: nucleosome length
+  - as: msp positions
+  - al: msp lengths
+  - aq: msp quality score
+"""
+@auxmap AuxMapModFire ModFields FireFields
+
+
+
+"""
+    AuxMapModFireQC()
+
+Construct and map of the aux data for a FIRE BAM/CRAM mapping fields
+
+  - NM: edit distance
+  - AS: alignment score
+  - de: divergance (minimap2)
+  - qs: ONT q score
+  - hp: Haplotype
+  - mm: Run length encoded mod bases
+  - ml: Mod Probability
+  - ns: Nucleosome positions
+  - nl: nucleosome length
+  - as: msp positions
+  - al: msp lengths
+  - aq: msp quality score
+"""
+@auxmap AuxMapModFireQC ModFields FireFields QCFields
+
+
+"""
+    AuxMapFiberHMM()
+
+Construct and map of the aux data for FiberHMM BAM/CRAM mapping fields
+
+  - hp: Haplotype
+  - mm: Run length encoded mod bases
+  - ml: Mod Probability
+  - ma: Molecular annotation spec tag
+  - AQ: Annotation quality score array
+"""
+@auxmap AuxMapFiberHMM ModFields MAFields
+
+"""
+    AuxMapModFireFiberHMM()
+
+Construct an map of the aux data for both Fire and FiberHMM fields
+"""
+@auxmap AuxMapModFireFiberHMM ModFields FireFields MAFields
+
+
+"""
+    AuxMapStencilling()
+
+Construct an map of the aux data for both Fire and FiberHMM fields
+"""
+@auxmap AuxMapStencilling ModFields FireFields QCFields
