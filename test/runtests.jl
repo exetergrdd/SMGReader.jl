@@ -186,6 +186,40 @@ if isdir("test/data")
     end
 end
 
+### test defintion of new auxmaps
+function compareauxmap(file, amA, amB)
+
+    ama = amA()
+    amb = amB()
+    (propertynames(ama) == propertynames(amb)) || return false
+
+    reader = open(HTSFileReader, file)
+    fields = propertynames(ama)
+
+    for record in eachrecord(reader)
+        SMGReader.auxmap!(record, ama)
+        SMGReader.auxmap!(record, amb)
+
+        for f in fields
+            (getproperty(ama, f) == getproperty(amb, f)) || return false
+        end
+    end
+    close(reader)
+
+    return true
+end
+
+@auxfieldset MF require=(mm => :MM, ml => :ML) opt=(hp => :HP)
+@auxmap TestMap MF
+
+if isdir("test/data")
+    @testset "AuxMap Definitions" begin
+        @test compareauxmap(bamfile, AuxMapMod, TestMap)
+    end
+end
+
+
+
 ### tests for Modiciations
 @testset "Modifications" begin
     @test SMGReader.getmodbasestrand(UInt8('A'), true) == 0x01
@@ -747,15 +781,35 @@ if isdir("test/data")
         for record in eachrecord(reader)
             processread!(record, recorddata) || continue
 
+
             for mod in ModIterator(record, recorddata)
                 for k in (3, 5, 7, 9)
                     kstr = kmer(record, mod.pos, k)
                     kidx = kmer_index(record, mod.pos, k)
-                    # kvi = kmer_index(record, mod.pos, Val(7))
+
+
+                    if k == 3
+                        @test kidx == kmer3_index(record, mod.pos)
+                    elseif k == 5
+                        @test kidx == kmer5_index(record, mod.pos)
+                    elseif k == 7
+                        @test kidx == kmer7_index(record, mod.pos)
+                    end
+
+                    h = k >> 1
+                    cbase = kstr[h+1]
+                    expected_kstr = replace(kstr, 'N' => 'A')
+                    @test index_to_kmer(kidx, k, cbase) == expected_kstr
+                    if k == 3
+                        @test index_to_kmer3(kidx, cbase) == expected_kstr
+                    elseif k == 5
+                        @test index_to_kmer5(kidx, cbase) == expected_kstr
+                    elseif k == 7
+                        @test index_to_kmer7(kidx, cbase) == expected_kstr
+                    end
 
                     # Manually compute the index from the string representation
                     expected_idx = 0
-                    h = k >> 1
                     for (i, c) in enumerate(kstr)
                         i == (h + 1) && continue # Skip central mod base
                         bval = c == 'A' ? 0 : c == 'C' ? 1 : c == 'G' ? 2 : c == 'T' ? 3 : 0
@@ -778,3 +832,55 @@ if isdir("test/data")
         close(reader)
     end
 end
+
+if isdir("test/data")
+    @testset "Modified kmer indices" begin
+        reader = open(HTSFileReader, bamfile)
+        recorddata = StencillingDataKmer(AuxMapModFireQC(), 0x80)
+        
+        all_match = true
+        reads_tested = 0
+        
+        for record in eachrecord(reader)  
+            processread!(record, recorddata) || continue
+            
+            for mod in ModIterator(record, recorddata)
+                for k in (3, 5, 7)
+                    kidx = kmer_mod_index(recorddata, mod.pos, k)
+                    
+                    if k == 3
+                        @test kidx == kmer3_mod_index(recorddata, mod.pos)
+                    elseif k == 5
+                        @test kidx == kmer5_mod_index(recorddata, mod.pos)
+                    elseif k == 7
+                        @test kidx == kmer7_mod_index(recorddata, mod.pos)
+                    end
+                    
+                    # Compute manually to verify bit layout
+                    h = k >> 1
+                    len = length(recorddata.seq_mods)
+                    expected_idx = 0
+                    for d in -h:h
+                        d == 0 && continue
+                        p = mod.pos + d
+                        bval = (1 <= p <= len) ? recorddata.seq_mods[p] : 0x07
+                        expected_idx = (expected_idx << 3) | bval
+                    end
+                    expected_idx += 1
+                    
+                    if kidx != expected_idx
+                        @error "Mismatch in modified k-mer index" k kidx expected_idx
+                        all_match = false
+                    end
+                end
+            end
+            
+            reads_tested += 1
+            reads_tested >= 100 && break
+        end
+        
+        @test all_match
+        close(reader)
+    end
+end
+
