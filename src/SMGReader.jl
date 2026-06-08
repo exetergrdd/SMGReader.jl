@@ -13,7 +13,8 @@ export HTSFileReader, indexfile, BamRecord, nrecords, referencedict,
     StencillingData, StencillingDataKmer, DirectRNA, DirectRNAAlignBlocks, FiberHMMData, processread!, genomecoords, firegenomecoords, autodetecthtsdata,
     firemsps, firenucs, firegenome, fiberhmm_nucs, fiberhmm_msps, fiberhmm_tfs,
     samrecord, writesamfile,
-    VectorBuffer, setlength!
+    VectorBuffer, setlength!,
+    IndelInfo, ReadIndels
 
 include("buffer.jl")
 include("htslib.jl")
@@ -25,6 +26,7 @@ include("modifications.jl")
 include("kmers.jl")
 include("sam.jl")
 include("alignmentaccessors.jl")
+include("genotype.jl")
 
 
 
