@@ -4,13 +4,13 @@
 Information about an insertion or deletion identified from an alignment map.
 
 # Fields
-  - `kind::Symbol`: `:insertion` or `:deletion` (Note: spliced/skipped regions 'N' will also appear as `:deletion`)
+  - `isdeletion::Bool`: `true` for a deletion, `false` for an insertion. (Note: spliced/skipped regions 'N' will also appear as `true`)
   - `readpos::Int`: 1-based start of the insertion on the read, or `-1` for a deletion
   - `genomepos::Int`: 0-based genome position of the deletion, or 0-based genome position before the insertion
   - `length::Int`: Length of the insertion or deletion
 """
 struct IndelInfo
-    kind::Symbol
+    isdeletion::Bool
     readpos::Int
     genomepos::Int
     length::Int
@@ -39,18 +39,18 @@ struct ReadIndels{T<:HTSReadData}
     recorddata::T
     len::Int32
 end
-ReadIndels(record::BamRecord, recorddata::HTSReadData) = ReadIndels(recorddata, querylength(record))
+@inline ReadIndels(record::BamRecord, recorddata::HTSReadData) = ReadIndels(recorddata, querylength(record))
 
 Base.IteratorSize(::Type{<:ReadIndels}) = Base.SizeUnknown()
 Base.eltype(::Type{<:ReadIndels}) = IndelInfo
 
-function Base.iterate(iter::ReadIndels)
+@inline function Base.iterate(iter::ReadIndels)
     # Start at read position 1, with no previous genome position (-1)
     state = IndelIteratorState(1, -1)
     iterate(iter, state)
 end
 
-function Base.iterate(iter::ReadIndels, state::IndelIteratorState)
+@inline function Base.iterate(iter::ReadIndels, state::IndelIteratorState)
     readpos = state.readpos
     prevgenomepos = state.prevgenomepos
     alignmap = iter.recorddata.alignmap
@@ -71,7 +71,7 @@ function Base.iterate(iter::ReadIndels, state::IndelIteratorState)
             # Yield true insertions that happen between mapped bases.
             if prevgenomepos != -1 && readpos <= len
                 ins_len = readpos - start_readpos
-                return IndelInfo(:insertion, start_readpos, prevgenomepos, ins_len), IndelIteratorState(readpos, prevgenomepos)
+                return IndelInfo(false, start_readpos, prevgenomepos, ins_len), IndelIteratorState(readpos, prevgenomepos)
             end
             
         elseif prevgenomepos != -1 && genomepos > prevgenomepos + 1
@@ -81,7 +81,7 @@ function Base.iterate(iter::ReadIndels, state::IndelIteratorState)
             
             # Yield deletion. Next state starts at current `readpos` with `prevgenomepos = genomepos` 
             # so we don't double count the gap.
-            return IndelInfo(:deletion, -1, del_genome_start, del_len), IndelIteratorState(readpos, genomepos)
+            return IndelInfo(true, -1, del_genome_start, del_len), IndelIteratorState(readpos, genomepos)
             
         else
             # Normal match/mismatch base
