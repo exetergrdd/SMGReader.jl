@@ -4,13 +4,13 @@
 Information about an insertion or deletion identified from an alignment map.
 
 # Fields
-  - `type::Symbol`: `:insertion` or `:deletion` (Note: spliced/skipped regions 'N' will also appear as `:deletion`)
+  - `kind::Symbol`: `:insertion` or `:deletion` (Note: spliced/skipped regions 'N' will also appear as `:deletion`)
   - `readpos::Int`: 1-based start of the insertion on the read, or `-1` for a deletion
   - `genomepos::Int`: 0-based genome position of the deletion, or 0-based genome position before the insertion
   - `length::Int`: Length of the insertion or deletion
 """
 struct IndelInfo
-    type::Symbol
+    kind::Symbol
     readpos::Int
     genomepos::Int
     length::Int
