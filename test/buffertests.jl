@@ -26,6 +26,7 @@
     setlength!(buff, 20)
     @test length(buff) == 20
     @test length(buff.data) >= 20
+
 end
 
 
@@ -48,4 +49,29 @@ end
     @test buff[inds] == [1, 3, 5]
 
     @test buff[2:4] == 2:4
+end
+
+
+@testset "push and empty" begin
+    buff = VectorBuffer{Int}(2, 0)
+
+    
+    @test iszero(length(buff))
+    push!(buff, 1)
+
+    @test length(buff) == 1
+    @test length(buff.data) >= 1
+    @test buff[1] == 1
+
+    push!(buff, 2)
+    @test length(buff) == 2
+    @test length(buff.data) >= 2
+    @test buff[2] == 2
+
+    empty!(buff)
+    @test iszero(length(buff))
+    @test buff.data[1] == 1
+    @test buff.data[2] == 2
+    @test length(buff.data) >= 2
+
 end
