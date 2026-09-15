@@ -102,3 +102,26 @@ Return a slice of the buffer for the given range `r`.
     @boundscheck checkbounds(buff, first(r)) && checkbounds(buff, last(r)) 
     return buff.data[r]
 end
+
+
+"""
+    Base.push!(buff::VectorBuffer{T}, val)
+
+Append `val` to the logical end of the buffer, resizing the backing storage if necessary.
+"""
+@inline function Base.push!(buff::VectorBuffer{T}, val) where {T}
+    newlen = buff.len + 1
+    setlength!(buff, newlen)
+    @inbounds buff.data[newlen] = convert(T, val)   
+    buff
+end
+
+"""
+    Base.empty!(buff::VectorBuffer{T})
+
+Reset the logical length to 0 without freeing backing storage.
+"""
+@inline function Base.empty!(buff::VectorBuffer{T}) where {T}
+    buff.len = 0
+    buff
+end
