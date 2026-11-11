@@ -114,49 +114,40 @@ Return a `.bai` or `.crai` file as appropriate for `bam` and `cram` files
 end
 
 # === Reader Setup ===
-### convert to Base.open?
 
 """
-    open(HTSFileReader, path; idx_path=indexfile(path), bamthreads=Threads.nthreads())
+    open(HTSFileReader, path; idx_path=nothing, bamthreads=Threads.nthreads())
+    openhts(path; idx_path=nothing, bamthreads=Threads.nthreads())
 
-Use ccall to `hts_open` the file at `path`.
-    - `idx_path` gives location of index and is mandatory
-    - `bamthreads` specifies number of threads used by htslib
+Open a local or remote (`http://`, `https://`, `ftp://`, `s3://`) BAM/CRAM file at `path` using `htslib`.
+- `idx_path`: optional path or URL to the `.bai`/`.crai`/`.csi` index file. Defaults to `nothing`, in which case `htslib` automatically discovers the index alongside `path` and streams remote indices directly into memory without saving a local copy.
+- `bamthreads`: number of decompression threads used by `htslib` (defaults to `Threads.nthreads()`).
 """
-@inline Base.open(::Type{HTSFileReader}, path; idx_path=indexfile(path), bamthreads=Threads.nthreads()) = openhts(path, idx_path=idx_path, bamthreads=bamthreads)
-function openhts(path; idx_path=indexfile(path), bamthreads=Threads.nthreads())
-   
+@inline Base.open(::Type{HTSFileReader}, path::AbstractString; idx_path::Union{AbstractString, Nothing}=nothing, bamthreads::Integer=Threads.nthreads()) =
+    openhts(path; idx_path=idx_path, bamthreads=bamthreads)
+
+function openhts(path::AbstractString; idx_path::Union{AbstractString, Nothing}=nothing, bamthreads::Integer=Threads.nthreads())
     fp = @ccall libhts.hts_open(path::Cstring, "r"::Cstring)::htsFile_p
     fp == C_NULL && error("Failed to open $path")
 
-    ### set reader threads
-    
     @ccall libhts.hts_set_threads(fp::htsFile_p, bamthreads::Cint)::Cint
 
     hdr = @ccall libhts.sam_hdr_read(fp::htsFile_p)::sam_hdr_t_p
     hdr == C_NULL && error("Failed to read header")
 
-    is_remote = startswith(path, "http://") || startswith(path, "https://") || startswith(path, "ftp://") || startswith(path, "s3://")
-    # cache_dir=joinpath(homedir(), ".cache", "htslib_indices")
-    if is_remote
-        # Let htslib natively discover and download/stream the remote index
-        idx = @ccall libhts.sam_index_load(fp::htsFile_p, path::Cstring)::hts_idx_t_p
-        idx == C_NULL && error("Failed to load remote index for $path")
-        
-    else
-        # Local file logic probably can just use sam_index_load if idx_path === nothing
-        actual_idx_path = isnothing(idx_path) ? indexfile(path) : idx_path
-        if isfile(actual_idx_path)
-            idx = @ccall libhts.sam_index_load2(fp::htsFile_p, path::Cstring, actual_idx_path::Cstring)::hts_idx_t_p 
-            idx == C_NULL && error("Failed to load index for $actual_idx_path")
-        else
-            idx = C_NULL
-        end
-    end
+    # flags = 0 streams remote indices directly into memory without saving to CWD.
+    # Passing C_NULL for fnidx lets htslib auto-discover .bai/.crai/.csi (both local and remote).
+    fnidx = something(idx_path, C_NULL)
+    idx = @ccall libhts.sam_index_load3(
+        fp::htsFile_p,
+        path::Cstring,
+        fnidx::Ptr{Cchar},
+        0::Cint,
+    )::hts_idx_t_p
 
     record = @ccall libhts.bam_init1()::bam1_t_p
 
-    HTSFileReader(path, fp, hdr, idx, record, C_NULL, false)
+    return HTSFileReader(String(path), fp, hdr, idx, record, C_NULL, false)
 end
 
 """
